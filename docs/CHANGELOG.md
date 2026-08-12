@@ -31,3 +31,13 @@
 - Added test-only `APP_KEY` to `phpunit.xml`.
 - Verified: `migrate:fresh --seed` ✅ (MySQL 8.4.3), `php artisan test` ✅ 7/7, `pint --test` ✅.
 - Full context in `docs/FOUNDATION_AUDIT_FIXES.md`.
+
+## [Module 1 - API Authentication & User Profile] - 2026-08-12
+- Installed `laravel/sanctum` via `php artisan install:api` (v4.3.3) and registered `api:` routing with `apiPrefix('api/v1')` in `bootstrap/app.php`.
+- Adapted the Sanctum `personal_access_tokens` migration to `uuidMorphs('tokenable')` to match the UUID primary keys of the `users` table.
+- Added `Laravel\Sanctum\HasApiTokens` to the `User` model; login issues a Sanctum token carrying role claims (`role:SUPERADMIN`, `role:BUYER_B2B`, `role:BUYER_B2G`) as token abilities.
+- Added uniform API response envelope `{ success, message, data, errors }` via `App\Traits\ApiResponser`; shaped global `ValidationException` (422) and `AuthenticationException` (401) into the same envelope in `bootstrap/app.php`.
+- Added auth endpoints: `POST /api/v1/auth/login` (public), `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `PUT /api/v1/auth/profile` (all `auth:sanctum`).
+- Added `LoginRequest` / `UpdateProfileRequest` (`app/Http/Requests/Auth`), `UserResource`, `AuthController`, `ProfileController`, and `UserPolicy` (self or superadmin) with automatic policy discovery.
+- Added `tests/Feature/Api/AuthTest` (8 tests: login success/token abilities, invalid credentials, validation, `me`, profile update, role/email immutability, logout revocation, unauthenticated access).
+- Verified: `pint --test` ✅, `php artisan test` ✅ 15/15 (66 assertions), live smoke test on MySQL ✅ (login/me/update/logout/revoked-token → 401).
