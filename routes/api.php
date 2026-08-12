@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ProfileController;
+use App\Http\Controllers\Api\Bast\BastController;
+use App\Http\Controllers\Api\Invoice\InvoiceController;
+use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Product\ProductController;
 use App\Http\Controllers\Api\Rfq\RfqController;
 use Illuminate\Support\Facades\Route;
@@ -57,4 +60,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/rfqs/{rfq}', [RfqController::class, 'show']);
     Route::post('/rfqs/{rfq}/respond', [RfqController::class, 'respond']);
     Route::patch('/rfqs/{rfq}/status', [RfqController::class, 'updateStatus']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Order Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+
+    Route::get('/orders/{order}/bast', [BastController::class, 'show']);
+    Route::post('/orders/{order}/bast/sign', [BastController::class, 'sign']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Invoice Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/invoices', [InvoiceController::class, 'index']);
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
+    Route::patch('/invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus']);
 });

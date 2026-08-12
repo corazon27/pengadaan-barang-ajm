@@ -146,3 +146,65 @@ Invalid transitions return **422 Unprocessable Entity** with `{ success: false, 
 - `app/Http/Controllers/Api/Rfq/RfqController.php` — full CRUD + respond + status update with transition validation
 - `routes/api.php` — RFQ routes under `/api/v1/rfqs`
 - `tests/Feature/Api/RfqTest.php` — 12 tests (isolation, Superadmin respond, owner transitions, 403/422 enforcement)
+
+---
+
+## Module 4 — Order & Invoicing Workflow API
+
+### Implemented Routes & Methods
+| Method | Endpoint | Guard | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/v1/orders` | `auth:sanctum` | List orders (scoped: Superadmin all, buyers own only); optional `status` filter, `per_page` pagination |
+| POST | `/api/v1/orders` | `auth:sanctum` + `OrderPolicy@create` | Convert an approved RFQ into an order (transactional) |
+| GET | `/api/v1/orders/{order}` | `auth:sanctum` + `OrderPolicy@view` | Show order with items, RFQ, BAST, and invoices |
+| PATCH | `/api/v1/orders/{order}/status` | `auth:sanctum` + `OrderPolicy@updateStatus` | Advance / cancel order with transition validation; auto-generates BAST on `DELIVERED` |
+| GET | `/api/v1/orders/{order}/bast` | `auth:sanctum` + `BastDocumentPolicy@view` | Show the order's BAST document |
+| POST | `/api/v1/orders/{order}/bast/sign` | `auth:sanctum` + `BastDocumentPolicy@sign` | Buyer signs BAST → order `COMPLETED`, auto-generates UNPAID invoice |
+| GET | `/api/v1/invoices` | `auth:sanctum` | List invoices (scoped by role); optional `payment_status` filter |
+| GET | `/api/v1/invoices/{invoice}` | `auth:sanctum` + `InvoicePolicy@view` | Show single invoice |
+| PATCH | `/api/v1/invoices/{invoice}/payment-status` | `auth:sanctum` + `InvoicePolicy@updatePaymentStatus` | Superadmin-only: mark invoice UNPAID/PAID/OVERDUE (sets `paid_at` on PAID) |
+
+### Order Statuses (`OrderStatus`)
+Replaced with the procurement lifecycle set: `PENDING_PAYMENT`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `COMPLETED`, `CANCELLED`.
+
+### Status Transition Matrix
+| From | To | Allowed By |
+|------|----|------------|
+| `PENDING_PAYMENT` | `PROCESSING`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
+| `PROCESSING` | `SHIPPED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
+| `SHIPPED` | `DELIVERED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
+| `DELIVERED` | `COMPLETED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
+| `COMPLETED` | — | Terminal |
+| `CANCELLED` | — | Terminal |
+
+Side effects:
+- **`DELIVERED`** → auto-creates a `BastDocument` (`PENDING_SIGNATURE`) if none exists.
+- **BAST sign** (`POST /orders/{order}/bast/sign`) → BAST `SIGNED` (records `signed_by`, `signed_at`, `signed_date`, `notes`), order `COMPLETED`, and generates an `Invoice` (`UNPAID`) with `subtotal` (order total), `tax_amount` (per-item product tax rate), `grand_total`, and `amount_due`, due `top_days` after issue.
+
+### RFQ → Order Conversion
+`POST /api/v1/orders` with `{ rfq_id }` requires the RFQ to be `APPROVED` and not yet converted. The order is created as `PENDING_PAYMENT` for the RFQ owner and its items are copied at the quoted `negotiated_price`; the RFQ is then set to `CONVERTED_TO_ORDER`. Violations return 403/422.
+
+### Invoice Payment Status (`InvoiceStatus`)
+`UNPAID`, `OVERDUE`, `PAID` (stored in `invoices.status`, exposed as `payment_status` in the resource). Only Superadmin may update it; `PAID` stamps `paid_at`.
+
+### RBAC Policies
+- **OrderPolicy** — `viewAny` true (scoped in controller), `view` owner/Superadmin, `create` buyer/Superadmin, `updateStatus` owner/Superadmin (controller validates transitions)
+- **BastDocumentPolicy** — `view` owner/Superadmin, `sign` owner/Superadmin
+- **InvoicePolicy** — `view` owner/Superadmin, `updatePaymentStatus` Superadmin only
+
+### Key Files Created/Modified
+- `app/Enums/OrderStatus.php` — replaced with the new lifecycle statuses
+- `app/Enums/BastStatus.php` — new (`PENDING_SIGNATURE`, `SIGNED`)
+- `database/migrations/2026_08_14_add_order_workflow_columns.php` — MySQL-guarded `orders.status` enum ALTER; `bast_documents` gains `status`, `signed_by`, `signed_at`, `notes` and nullable `bast_document_url`/`signed_date`; `invoices` gains `subtotal`, `tax_amount`, `grand_total`
+- `app/Models/Order.php` — `statusLabel()` helper
+- `app/Models/BastDocument.php` — BAST signing fields + `BastStatus` cast + `statusLabel()`
+- `app/Models/Invoice.php` — `subtotal`/`tax_amount`/`grand_total` fillable + casts
+- `app/Http/Requests/Order/CreateOrderFromRfqRequest.php`, `UpdateOrderStatusRequest.php`
+- `app/Http/Requests/Bast/SignBastRequest.php`
+- `app/Http/Requests/Invoice/UpdateInvoicePaymentStatusRequest.php`
+- `app/Http/Resources/Order/OrderResource.php`, `OrderItemResource.php`, `app/Http/Resources/Bast/BastResource.php`, `app/Http/Resources/Invoice/InvoiceResource.php`
+- `app/Policies/OrderPolicy.php`, `BastDocumentPolicy.php`, `InvoicePolicy.php`
+- `app/Http/Controllers/Api/Order/OrderController.php`, `Api/Bast/BastController.php`, `Api/Invoice/InvoiceController.php`
+- `routes/api.php` — order, BAST, and invoice routes
+- `tests/Feature/Api/OrderTest.php` — 10 tests (conversion, isolation, status transitions, BAST generation)
+- `tests/Feature/Api/InvoiceTest.php` — 8 tests (BAST signing → invoice, payment status updates, RBAC)

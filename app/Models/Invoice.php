@@ -24,6 +24,9 @@ class Invoice extends Model
         'invoice_pdf_url',
         'faktur_pajak_url',
         'amount_due',
+        'subtotal',
+        'tax_amount',
+        'grand_total',
         'issued_date',
         'due_date',
         'status',
@@ -38,6 +41,9 @@ class Invoice extends Model
             'due_date' => 'date',
             'paid_at' => 'datetime',
             'amount_due' => 'decimal:2',
+            'subtotal' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
+            'grand_total' => 'decimal:2',
         ];
     }
 

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('order_number', 50)->unique();
             $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
             $table->foreignUuid('rfq_id')->nullable()->constrained('rfqs')->nullOnDelete()->unique();
-            $table->enum('status', array_column(OrderStatus::cases(), 'value'))->default(OrderStatus::DRAFT->value);
+            $table->enum('status', array_column(OrderStatus::cases(), 'value'))->default(OrderStatus::PENDING_PAYMENT->value);
             $table->integer('top_days')->unsigned()->default(30);
             $table->decimal('total_amount', 15, 2);
             $table->string('po_document_url', 500)->nullable();

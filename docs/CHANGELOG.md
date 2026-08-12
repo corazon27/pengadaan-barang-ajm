@@ -65,3 +65,14 @@
 - Added routes under `/api/v1/rfqs`: `GET` (list), `POST` (create), `GET {rfq}` (show), `POST {rfq}/respond` (Superadmin), `PATCH {rfq}/status` (owner/Superadmin).
 - Added `RfqTest` (12 tests): buyer CRUD isolation, Superadmin list/respond, owner accept/reject/cancel, Superadmin-only respond, invalid transition 422, 403 enforcement.
 - Verified: `pint --test` ✅, `php artisan test` ✅ 27/27 (123 assertions).
+
+## [Module 4 - Order & Invoicing Workflow API] - 2026-08-14
+- Replaced `OrderStatus` enum with the lifecycle set `PENDING_PAYMENT`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `COMPLETED`, `CANCELLED`; created `BastStatus` enum (`PENDING_SIGNATURE`, `SIGNED`).
+- Added `database/migrations/2026_08_14_add_order_workflow_columns.php`: MySQL-guarded ALTER of `orders.status` enum; `bast_documents` gains `status`, `signed_by`, `signed_at`, `notes` and nullable `bast_document_url`/`signed_date`; `invoices` gains `subtotal`, `tax_amount`, `grand_total`.
+- Extended `Order`, `BastDocument`, and `Invoice` models with the new fields/casts and `statusLabel()` helpers.
+- Added `OrderController` (list/show, RFQ→order conversion, status transitions), `BastController` (show/sign), `InvoiceController` (list/show/payment-status).
+- Conversion (`POST /orders`) requires an `APPROVED` unconverted RFQ; items are copied at the quoted `negotiated_price`; RFQ moves to `CONVERTED_TO_ORDER`.
+- Status state machine: forward moves Superadmin-only, cancellation allowed for owner/Superadmin; invalid transitions → 422. `DELIVERED` auto-generates a `PENDING_SIGNATURE` BAST; signing the BAST completes the order and auto-generates an UNPAID invoice (subtotal/tax/grand_total, due in `top_days`).
+- Added `OrderPolicy`, `BastDocumentPolicy`, `InvoicePolicy`; `InvoiceResource` exposes `payment_status`; Superadmin-only invoice payment-status updates (sets `paid_at` on PAID).
+- Registered order/BAST/invoice routes under `/api/v1`.
+- Added `OrderTest` (10 tests) and `InvoiceTest` (8 tests) covering conversion rules, role isolation, status transitions, BAST generation/signing, invoice generation, and payment-status RBAC.

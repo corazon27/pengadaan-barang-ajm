@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\BastStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,13 +20,19 @@ class BastDocument extends Model
     protected $fillable = [
         'order_id',
         'bast_number',
+        'status',
         'bast_document_url',
+        'signed_by',
+        'signed_at',
         'signed_date',
+        'notes',
     ];
 
     protected function casts(): array
     {
         return [
+            'status' => BastStatus::class,
+            'signed_at' => 'datetime',
             'signed_date' => 'date',
         ];
     }
@@ -35,8 +42,22 @@ class BastDocument extends Model
         return $this->belongsTo(Order::class);
     }
 
+    public function signedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signed_by');
+    }
+
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function statusLabel(): string
+    {
+        return match ($this->status) {
+            BastStatus::PENDING_SIGNATURE => 'Menunggu Tanda Tangan',
+            BastStatus::SIGNED => 'Ditandatangani',
+            default => $this->status->value,
+        };
     }
 }

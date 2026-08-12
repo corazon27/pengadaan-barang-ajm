@@ -23,7 +23,7 @@ class OrderFactory extends Factory
             'order_number' => 'ORD-'.strtoupper(Str::random(10)),
             'user_id' => User::factory(),
             'rfq_id' => null,
-            'status' => OrderStatus::DRAFT,
+            'status' => OrderStatus::PENDING_PAYMENT,
             'top_days' => 30,
             'po_document_url' => null,
             'lkpp_product_url' => null,

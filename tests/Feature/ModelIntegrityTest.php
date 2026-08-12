@@ -35,7 +35,7 @@ class ModelIntegrityTest extends TestCase
         $this->assertSame(RfqStatus::SUBMITTED, $rfq->status);
 
         $order = Order::factory()->create();
-        $this->assertSame(OrderStatus::DRAFT, $order->status);
+        $this->assertSame(OrderStatus::PENDING_PAYMENT, $order->status);
 
         $bast = BastDocument::factory()->create(['order_id' => $order->id]);
         $invoice = Invoice::factory()->create([
