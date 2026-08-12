@@ -6,33 +6,27 @@ namespace Database\Factories;
 
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
-/**
- * @extends Factory<Product>
- */
 class ProductFactory extends Factory
 {
     protected $model = Product::class;
 
     public function definition(): array
     {
-        $title = fake()->words(3, true);
-
         return [
-            'sku' => 'PRD-'.strtoupper(Str::random(8)),
-            'title' => ucfirst($title),
-            'slug' => Str::slug($title).'-'.Str::random(5),
+            'sku' => fake()->unique()->numerify('PROD-########'),
+            'title' => fake()->sentence(),
+            'slug' => fake()->slug(),
             'description' => fake()->paragraph(),
-            'base_price' => fake()->numberBetween(500000, 15000000),
-            'margin_percentage' => 10.00,
-            'tax_rate_percentage' => 11.00,
-            'estimated_shipping' => 50000,
-            'tkdn_percentage' => fake()->randomFloat(2, 25, 60),
-            'is_sni' => fake()->boolean(80),
-            'warranty_info' => '1 Tahun Garansi Resmi',
-            'datasheet_url' => 'https://example.com/datasheets/sample.pdf',
-            'stock' => fake()->numberBetween(10, 200),
+            'base_price' => fake()->randomFloat(2, 10, 500),
+            'margin_percentage' => fake()->randomFloat(0, 0, 50),
+            'tax_rate_percentage' => fake()->randomFloat(0, 0, 25),
+            'estimated_shipping' => fake()->randomFloat(2, 5, 30),
+            'tkdn_percentage' => fake()->randomFloat(0, 0, 20),
+            'is_sni' => fake()->boolean(0.3),
+            'warranty_info' => fake()->sentence(),
+            'datasheet_url' => fake()->url(),
+            'stock' => fake()->numberBetween(0, 100),
         ];
     }
 }

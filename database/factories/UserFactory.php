@@ -9,9 +9,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 
-/**
- * @extends Factory<User>
- */
 class UserFactory extends Factory
 {
     protected $model = User::class;
@@ -46,8 +43,6 @@ class UserFactory extends Factory
 
     public function buyerB2g(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'company_name' => 'Dinas Komunikasi dan Informatika',
-        ])->afterCreating(fn (User $user) => $user->forceFill(['role' => UserRole::BUYER_B2G])->save());
+        return $this->afterCreating(fn (User $user) => $user->forceFill(['role' => UserRole::BUYER_B2G])->save());
     }
 }
