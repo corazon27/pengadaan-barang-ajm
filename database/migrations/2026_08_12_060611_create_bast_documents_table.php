@@ -15,6 +15,8 @@ return new class extends Migration
             $table->string('bast_document_url', 500);
             $table->date('signed_date');
             $table->timestamp('created_at')->useCurrent();
+
+            $table->unique(['id', 'order_id']);
         });
     }
 

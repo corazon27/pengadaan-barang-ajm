@@ -20,9 +20,9 @@ class ProductFactory extends Factory
         $title = fake()->words(3, true);
 
         return [
-            'sku' => 'PRD-' . strtoupper(Str::random(8)),
+            'sku' => 'PRD-'.strtoupper(Str::random(8)),
             'title' => ucfirst($title),
-            'slug' => Str::slug($title) . '-' . Str::random(5),
+            'slug' => Str::slug($title).'-'.Str::random(5),
             'description' => fake()->paragraph(),
             'base_price' => fake()->numberBetween(500000, 15000000),
             'margin_percentage' => 10.00,

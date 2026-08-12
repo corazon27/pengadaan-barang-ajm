@@ -13,7 +13,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('rfq_number', 50)->unique();
             $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
-            $table->string('status')->default(RfqStatus::SUBMITTED->value);
+            $table->enum('status', array_column(RfqStatus::cases(), 'value'))->default(RfqStatus::SUBMITTED->value);
             $table->string('quotation_pdf_url', 500)->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('rfq_id')->constrained('rfqs')->cascadeOnDelete();
             $table->foreignUuid('product_id')->constrained('products')->restrictOnDelete();
-            $table->integer('quantity');
+            $table->integer('quantity')->unsigned();
             $table->decimal('negotiated_price', 15, 2)->nullable();
         });
     }

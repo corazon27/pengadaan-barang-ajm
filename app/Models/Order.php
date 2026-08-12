@@ -22,7 +22,6 @@ class Order extends Model
         'rfq_id',
         'status',
         'top_days',
-        'total_amount',
         'po_document_url',
         'lkpp_product_url',
     ];
@@ -34,6 +33,19 @@ class Order extends Model
             'top_days' => 'integer',
             'total_amount' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Order $order) {
+            $order->total_amount = (float) $order->items()->sum('subtotal');
+        });
+    }
+
+    public function recalculateTotal(): void
+    {
+        $this->total_amount = (float) $this->items()->sum('subtotal');
+        $this->saveQuietly();
     }
 
     public function user(): BelongsTo

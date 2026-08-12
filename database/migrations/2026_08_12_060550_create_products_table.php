@@ -15,14 +15,14 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->text('description');
             $table->decimal('base_price', 15, 2);
-            $table->decimal('margin_percentage', 5, 2)->default(0.00);
-            $table->decimal('tax_rate_percentage', 5, 2)->default(11.00);
+            $table->decimal('margin_percentage', 5, 2)->unsigned()->default(0.00);
+            $table->decimal('tax_rate_percentage', 5, 2)->unsigned()->default(11.00);
             $table->decimal('estimated_shipping', 15, 2)->default(0.00);
-            $table->decimal('tkdn_percentage', 5, 2)->nullable();
+            $table->decimal('tkdn_percentage', 5, 2)->unsigned()->nullable();
             $table->boolean('is_sni')->default(false);
             $table->string('warranty_info', 100)->nullable();
             $table->string('datasheet_url', 500)->nullable();
-            $table->integer('stock')->default(0);
+            $table->integer('stock')->unsigned()->default(0);
             $table->timestamps();
         });
     }

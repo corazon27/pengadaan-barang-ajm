@@ -19,8 +19,6 @@ class OrderItem extends Model
         'order_id',
         'product_id',
         'quantity',
-        'unit_price',
-        'subtotal',
     ];
 
     protected function casts(): array
@@ -30,6 +28,27 @@ class OrderItem extends Model
             'unit_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (OrderItem $item) {
+            $attributes = $item->getAttributes();
+
+            if (! array_key_exists('unit_price', $attributes) || $attributes['unit_price'] === null) {
+                $item->unit_price = (string) (Product::query()->whereKey($item->product_id)->value('base_price') ?? 0);
+            }
+
+            $item->subtotal = bcmul((string) $item->unit_price, (string) $item->quantity, 2);
+        });
+
+        static::saved(function (OrderItem $item) {
+            Order::query()->whereKey($item->order_id)->first()?->recalculateTotal();
+        });
+
+        static::deleted(function (OrderItem $item) {
+            Order::query()->whereKey($item->order_id)->first()?->recalculateTotal();
+        });
     }
 
     public function order(): BelongsTo

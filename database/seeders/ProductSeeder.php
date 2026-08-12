@@ -64,7 +64,9 @@ class ProductSeeder extends Seeder
             Product::updateOrCreate(['sku' => $productData['sku']], $productData);
         }
 
-        // Tambah 10 sampel produk acak menggunakan Factory
-        Product::factory(10)->create();
+        // Tambah 10 sampel produk acak menggunakan Factory (idempotent)
+        if (Product::where('sku', 'like', 'PRD-%')->doesntExist()) {
+            Product::factory(10)->create();
+        }
     }
 }

@@ -19,7 +19,6 @@ class Rfq extends Model
     protected $fillable = [
         'rfq_number',
         'user_id',
-        'status',
         'quotation_pdf_url',
         'notes',
     ];
@@ -29,6 +28,13 @@ class Rfq extends Model
         return [
             'status' => RfqStatus::class,
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Rfq $rfq) {
+            $rfq->status ??= RfqStatus::SUBMITTED;
+        });
     }
 
     public function user(): BelongsTo

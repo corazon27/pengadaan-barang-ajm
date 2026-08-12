@@ -41,6 +41,13 @@ class Invoice extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Invoice $invoice) {
+            $invoice->status ??= InvoiceStatus::UNPAID;
+        });
+    }
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);

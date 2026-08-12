@@ -13,9 +13,9 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('order_number', 50)->unique();
             $table->foreignUuid('user_id')->constrained('users')->restrictOnDelete();
-            $table->foreignUuid('rfq_id')->nullable()->constrained('rfqs')->nullOnDelete();
-            $table->string('status')->default(OrderStatus::DRAFT->value);
-            $table->integer('top_days')->default(30);
+            $table->foreignUuid('rfq_id')->nullable()->constrained('rfqs')->nullOnDelete()->unique();
+            $table->enum('status', array_column(OrderStatus::cases(), 'value'))->default(OrderStatus::DRAFT->value);
+            $table->integer('top_days')->unsigned()->default(30);
             $table->decimal('total_amount', 15, 2);
             $table->string('po_document_url', 500)->nullable();
             $table->string('lkpp_product_url', 500)->nullable();
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignUuid('order_id')->constrained('orders')->cascadeOnDelete();
             $table->foreignUuid('product_id')->constrained('products')->restrictOnDelete();
-            $table->integer('quantity');
+            $table->integer('quantity')->unsigned();
             $table->decimal('unit_price', 15, 2);
             $table->decimal('subtotal', 15, 2);
         });
