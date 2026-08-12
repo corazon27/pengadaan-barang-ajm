@@ -14,3 +14,7 @@
   - `invoices`
   - `audit_logs`
 - Created Eloquent Models with `HasUuids` trait, relationships, Enum casts, and strict type definitions.
+- Implemented `UserFactory` and `ProductFactory`.
+- Implemented `UserSeeder` (seeded Superadmin, Buyer B2B, and Buyer B2G accounts).
+- Implemented `ProductSeeder` (seeded B2B/B2G TKDN & SNI procurement products).
+- Successfully executed `php artisan migrate:fresh --seed`.
