@@ -13,3 +13,4 @@
   - `bast_documents`
   - `invoices`
   - `audit_logs`
+- Created Eloquent Models with `HasUuids` trait, relationships, Enum casts, and strict type definitions.
