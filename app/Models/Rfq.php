@@ -21,12 +21,16 @@ class Rfq extends Model
         'user_id',
         'quotation_pdf_url',
         'notes',
+        'valid_until',
+        'admin_notes',
+        'status',
     ];
 
     protected function casts(): array
     {
         return [
             'status' => RfqStatus::class,
+            'valid_until' => 'datetime',
         ];
     }
 

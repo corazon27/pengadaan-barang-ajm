@@ -11,4 +11,6 @@ enum RfqStatus: string
     case APPROVED = 'APPROVED';
     case REJECTED = 'REJECTED';
     case CONVERTED_TO_ORDER = 'CONVERTED_TO_ORDER';
+    case QUOTED = 'QUOTED';
+    case CANCELLED = 'CANCELLED';
 }

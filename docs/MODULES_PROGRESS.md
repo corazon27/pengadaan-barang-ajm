@@ -93,3 +93,56 @@ Example: `/api/v1/products?search=laptop&is_sni=1&min_tkdn=40&in_stock=1&per_pag
 - `routes/api.php` — product routes under `/api/v1/products`
 - `tests/Feature/Api/ProductTest.php` — 9 tests (public filtering, single product, superadmin CRUD, 403 for non-admin)
 - `database/factories/UserFactory.php` — added `superadmin()`, `buyerB2b()`, `buyerB2g()` states
+
+---
+
+## Module 3 — RFQ Workflow API
+
+### Implemented Routes & Methods
+| Method | Endpoint | Guard | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/v1/rfqs` | `auth:sanctum` | List RFQs (scoped: Superadmin all, buyers own only); optional `status` filter, `per_page` pagination |
+| POST | `/api/v1/rfqs` | `auth:sanctum` | Create RFQ with nested items (transactional) |
+| GET | `/api/v1/rfqs/{rfq}` | `auth:sanctum` | Show single RFQ with eager-loaded items and products |
+| POST | `/api/v1/rfqs/{rfq}/respond` | `auth:sanctum` + `RfqPolicy@respond` | Superadmin-only: submit quoted prices and validity |
+| PATCH | `/api/v1/rfqs/{rfq}/status` | `auth:sanctum` + `RfqPolicy@updateStatus` | Owner or Superadmin: accept / reject / cancel with transition validation |
+
+### Filtering Parameters (`GET /api/v1/rfqs`)
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `status` | string | Filter by RfqStatus (`SUBMITTED`, `QUOTED`, `APPROVED`, `REJECTED`, `CANCELLED`, etc.) |
+| `per_page` | integer | Pagination size (default 15) |
+| `page` | integer | Page number |
+
+### Status Transition Matrix
+| From | To | Allowed By |
+|------|----|------------|
+| `SUBMITTED` | `CANCELLED` | Owner or Superadmin |
+| `QUOTED` | `APPROVED` | Owner or Superadmin |
+| `QUOTED` | `REJECTED` | Owner or Superadmin |
+| `QUOTED` | `CANCELLED` | Owner or Superadmin |
+| Any | Any | Superadmin (unrestricted) |
+
+Invalid transitions return **422 Unprocessable Entity** with `{ success: false, message: "Transisi status tidak valid.", errors: { status: [...] } }`.
+
+### RBAC Policy (`RfqPolicy`)
+- `viewAny` → **true** (controller scopes the query)
+- `view` → **owner OR Superadmin**
+- `create` → **buyer (BUYER_B2B/BUYER_B2G) or Superadmin**
+- `respond` → **Superadmin only**
+- `updateStatus` → **owner OR Superadmin** (controller validates transitions)
+
+### Key Files Created/Modified
+- `app/Enums/RfqStatus.php` — added `QUOTED` and `CANCELLED`
+- `app/Models/Rfq.php` — added `valid_until`, `admin_notes`, `status` to `$fillable`; datetime cast for `valid_until`
+- `app/Models/RfqItem.php` — added `target_price`, `notes` to `$fillable`; decimal casts
+- `database/migrations/2026_08_13_add_rfq_workflow_columns.php` — adds `valid_until`/`admin_notes` to `rfqs`, `target_price`/`notes` to `rfq_items`
+- `app/Http/Requests/Rfq/StoreRfqRequest.php` — nested items validation (product_id, quantity, target_price)
+- `app/Http/Requests/Rfq/RespondRfqRequest.php` — Superadmin-only; offered_price, valid_until (after today)
+- `app/Http/Requests/Rfq/UpdateRfqStatusRequest.php` — status validation against all enum values
+- `app/Http/Resources/Rfq/RfqItemResource.php` — item serialization with subtotal calculations
+- `app/Http/Resources/Rfq/RfqResource.php` — RFQ serialization with total computations and status labels
+- `app/Policies/RfqPolicy.php` — RBAC for RFQ operations
+- `app/Http/Controllers/Api/Rfq/RfqController.php` — full CRUD + respond + status update with transition validation
+- `routes/api.php` — RFQ routes under `/api/v1/rfqs`
+- `tests/Feature/Api/RfqTest.php` — 12 tests (isolation, Superadmin respond, owner transitions, 403/422 enforcement)

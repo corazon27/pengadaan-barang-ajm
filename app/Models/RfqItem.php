@@ -18,14 +18,17 @@ class RfqItem extends Model
     protected $fillable = [
         'rfq_id',
         'product_id',
+        'target_price',
         'quantity',
         'negotiated_price',
+        'notes',
     ];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer',
+            'target_price' => 'decimal:2',
             'negotiated_price' => 'decimal:2',
         ];
     }

@@ -55,3 +55,13 @@
 - Added routes under `/api/v1/products` (public list/show, protected CRUD).
 - Wrote `ProductTest` covering public filtering, private CRUD, and role‑based access control.
 - Verified live MySQL flow: product creation, update, delete by superadmin, and 403 enforcement for non‑admin.
+
+## [Module 3 - RFQ Workflow API] - 2026-08-13
+- Extended `RfqStatus` enum with `QUOTED` and `CANCELLED`; added `valid_until`/`admin_notes` to `rfqs` and `target_price`/`notes` to `rfq_items` via migration.
+- Added `RfqItemResource` and `RfqResource` with computed totals and nested product details.
+- Created `StoreRfqRequest` (items with product_id, quantity, target_price), `RespondRfqRequest` (Superadmin: offered_price, valid_until), `UpdateRfqStatusRequest`.
+- Implemented `RfqPolicy`: public read isolation (buyers see own RFQs), Superadmin full access, owner status transitions (SUBMITTED/QUOTED → CANCELLED; QUOTED → APPROVED/REJECTED/CANCELLED), Superadmin-only quotation response.
+- Built `RfqController` with transactional `store` (RFQ + items), `respond` (updates `negotiated_price`, sets `QUOTED`, `valid_until`), `updateStatus` (validated transitions).
+- Added routes under `/api/v1/rfqs`: `GET` (list), `POST` (create), `GET {rfq}` (show), `POST {rfq}/respond` (Superadmin), `PATCH {rfq}/status` (owner/Superadmin).
+- Added `RfqTest` (12 tests): buyer CRUD isolation, Superadmin list/respond, owner accept/reject/cancel, Superadmin-only respond, invalid transition 422, 403 enforcement.
+- Verified: `pint --test` ✅, `php artisan test` ✅ 27/27 (123 assertions).
