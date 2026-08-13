@@ -21,6 +21,7 @@ class ProductFactory extends Factory
             'base_price' => fake()->randomFloat(2, 10, 500),
             'margin_percentage' => fake()->randomFloat(0, 0, 50),
             'tax_rate_percentage' => fake()->randomFloat(0, 0, 25),
+            'pph_rate_percentage' => null,
             'estimated_shipping' => fake()->randomFloat(2, 5, 30),
             'tkdn_percentage' => fake()->randomFloat(0, 0, 20),
             'is_sni' => fake()->boolean(0.3),

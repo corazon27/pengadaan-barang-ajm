@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Bast;
 
 use App\Enums\BastStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentTerm;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bast\SignBastRequest;
 use App\Http\Resources\Bast\BastResource;
@@ -116,13 +117,26 @@ class BastController extends Controller
 
         $subtotal = (float) $order->total_amount;
 
-        $taxAmount = $order->items()->with('product')->get()->sum(function ($item) {
-            $taxRate = (float) ($item->product->tax_rate_percentage ?? 0);
+        // PPN and optional PPh withholding are computed per item from the
+        // product rates, using BC Math for 2-decimal precision.
+        [$ppnAmount, $pphAmount] = $order->items()->with('product')->get()->reduce(
+            function (array $carry, $item) {
+                $ppnRate = (float) ($item->product->tax_rate_percentage ?? 0);
+                $pphRate = (float) ($item->product->pph_rate_percentage ?? 0);
 
-            return (float) $item->subtotal * ($taxRate / 100);
-        });
+                $carry[0] = bcadd($carry[0], bcmul((string) $item->subtotal, (string) ($ppnRate / 100), 6), 2);
+                $carry[1] = bcadd($carry[1], bcmul((string) $item->subtotal, (string) ($pphRate / 100), 6), 2);
 
-        $grandTotal = $subtotal + $taxAmount;
+                return $carry;
+            },
+            ['0.00', '0.00']
+        );
+
+        // PPh is a withholding (deducted by the buyer) and is NOT added to the
+        // billed amount: grand_total = subtotal + PPN.
+        $grandTotal = bcadd((string) $subtotal, $ppnAmount, 2);
+
+        $paymentTerm = $this->resolvePaymentTerm((int) $order->top_days);
 
         return Invoice::create([
             'order_id' => $order->id,
@@ -131,10 +145,25 @@ class BastController extends Controller
             'invoice_pdf_url' => 'https://example.com/invoices/'.$invoiceNumber.'.pdf',
             'amount_due' => $grandTotal,
             'subtotal' => $subtotal,
-            'tax_amount' => $taxAmount,
+            'ppn_amount' => $ppnAmount,
+            'pph_amount' => $pphAmount,
+            'payment_term' => $paymentTerm,
             'grand_total' => $grandTotal,
             'issued_date' => now()->toDateString(),
-            'due_date' => now()->addDays((int) $order->top_days)->toDateString(),
+            'due_date' => now()->addDays($paymentTerm->days())->toDateString(),
         ]);
+    }
+
+    /**
+     * Map an order's term-of-payment (in days) to a PaymentTerm enum.
+     */
+    private function resolvePaymentTerm(int $topDays): PaymentTerm
+    {
+        return match ($topDays) {
+            0 => PaymentTerm::IMMEDIATE,
+            14 => PaymentTerm::TOP_14,
+            60 => PaymentTerm::TOP_60,
+            default => PaymentTerm::TOP_30,
+        };
     }
 }

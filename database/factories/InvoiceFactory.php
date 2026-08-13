@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Enums\InvoiceStatus;
+use App\Enums\PaymentTerm;
 use App\Models\BastDocument;
 use App\Models\Invoice;
 use App\Models\Order;
@@ -31,7 +32,9 @@ class InvoiceFactory extends Factory
             'faktur_pajak_url' => null,
             'amount_due' => fn (array $attributes) => Order::find($attributes['order_id'])?->total_amount ?? 0,
             'subtotal' => fn (array $attributes) => Order::find($attributes['order_id'])?->total_amount ?? 0,
-            'tax_amount' => 0,
+            'ppn_amount' => 0,
+            'pph_amount' => 0,
+            'payment_term' => PaymentTerm::TOP_30,
             'grand_total' => fn (array $attributes) => Order::find($attributes['order_id'])?->total_amount ?? 0,
             'issued_date' => now()->toDateString(),
             'due_date' => now()->addDays(30)->toDateString(),

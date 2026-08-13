@@ -7,6 +7,7 @@ namespace Tests\Feature\Api;
 use App\Enums\BastStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentTerm;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -77,16 +78,19 @@ class InvoiceTest extends TestCase
         $this->assertNotNull($invoice);
         $this->assertEquals(InvoiceStatus::UNPAID, $invoice->status);
         $this->assertSame('200000.00', $invoice->subtotal);
-        $this->assertSame('22000.00', $invoice->tax_amount);
+        $this->assertSame('22000.00', $invoice->ppn_amount);
+        $this->assertSame('0.00', $invoice->pph_amount);
         $this->assertSame('222000.00', $invoice->grand_total);
         $this->assertSame('222000.00', $invoice->amount_due);
+        $this->assertEquals(PaymentTerm::TOP_30, $invoice->payment_term);
 
         $this->assertDatabaseHas('invoices', [
             'order_id' => $order->id,
             'bast_id' => $bast->id,
             'status' => InvoiceStatus::UNPAID->value,
             'subtotal' => 200000.00,
-            'tax_amount' => 22000.00,
+            'ppn_amount' => 22000.00,
+            'pph_amount' => 0.00,
             'grand_total' => 222000.00,
         ]);
     }
@@ -207,6 +211,46 @@ class InvoiceTest extends TestCase
 
         $response->assertStatus(422)
             ->assertJsonPath('success', false);
+    }
+
+    public function test_invoice_records_pph_withholding_without_adding_to_grand_total(): void
+    {
+        $buyer = User::factory()->buyerB2b()->create();
+        $superadmin = User::factory()->superadmin()->create();
+        $product = Product::factory()->create([
+            'base_price' => 100000.00,
+            'tax_rate_percentage' => 11.00,
+            'pph_rate_percentage' => 1.50,
+        ]);
+
+        $order = Order::factory()->create([
+            'user_id' => $buyer->id,
+            'status' => OrderStatus::PENDING_PAYMENT,
+        ]);
+
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        foreach ([OrderStatus::PROCESSING, OrderStatus::SHIPPED, OrderStatus::DELIVERED] as $status) {
+            $this->patchJson("/api/v1/orders/{$order->id}/status", [
+                'status' => $status->value,
+            ])->assertOk();
+        }
+
+        $this->actingAs($buyer);
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $invoice = $order->invoices()->first();
+        $this->assertSame('200000.00', $invoice->subtotal);
+        $this->assertSame('22000.00', $invoice->ppn_amount);
+        $this->assertSame('3000.00', $invoice->pph_amount);
+        $this->assertSame('222000.00', $invoice->grand_total);
+        $this->assertSame('222000.00', $invoice->amount_due);
     }
 
     public function test_invoice_listing_is_scoped_by_role(): void

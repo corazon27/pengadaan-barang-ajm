@@ -52,7 +52,7 @@ class InvoiceController extends Controller
     {
         $this->authorize('view', $invoice);
 
-        $invoice->load('order');
+        $invoice->load('order', 'payments');
 
         return response()->json([
             'success' => true,

@@ -240,3 +240,55 @@ Side effects:
 
 ### Verified
 `pint` ✅ · `php artisan test` ✅ 49 passed / 3 skipped (SQLite concurrency skips) · 239 assertions
+
+---
+
+## Module 5 — Payment Processing & Payment Terms (TOP / Tax Handling) API
+
+### Implemented Routes & Methods
+| Method | Endpoint | Guard | Description |
+|--------|----------|-------|-------------|
+| POST | `/api/v1/invoices/{invoice}/payments` | `auth:sanctum` | Buyer submits a payment proof (amount, method, date, file) → `PENDING_VERIFICATION` |
+| GET | `/api/v1/payments` | `auth:sanctum` | List payments; Superadmin sees all, buyers only their own invoices; `status` filter |
+| PATCH | `/api/v1/payments/{payment}/verify` | `auth:sanctum` | Superadmin approves (`VERIFIED`) or rejects (`REJECTED`) a payment; auto-reconciles invoice |
+
+### Payment Terms (`PaymentTerm`)
+- Enum `IMMEDIATE`(0), `TOP_14`(14), `TOP_30`(30), `TOP_60`(60) with `days()` and `statusLabel()`.
+- Stored as a snapshot on `invoices.payment_term` (default `TOP_30`); `due_date` is computed at issuance as `issued_date + payment_term.days()`.
+- `BastController::generateInvoice()` maps the order's `top_days` (0/14/30/60) to the enum via `resolvePaymentTerm()`.
+
+### Tax Breakdown (`InvoiceResource`)
+- `tax_amount` column renamed to **`ppn_amount`**; new `pph_amount` + `payment_term` columns on `invoices`; per-product `products.pph_rate_percentage` (nullable).
+- PPN and PPh computed **per item** with BC Math: `subtotal × rate ÷ 100`, summed, 2-decimal scale.
+- **PPh is a withholding, NOT added to the billed amount**: `grand_total = subtotal + ppn`; `amount_due = grand_total`. PPh is recorded separately for reporting.
+
+### Payment Status State Machine (`PaymentStatus`)
+`PENDING_VERIFICATION` → `VERIFIED` | `REJECTED` (terminal). Only Superadmin may transition; already-settled payments return 422.
+- Verification writes `verified_by`, `verified_at`; rejection additionally writes `rejection_reason` (required).
+
+### Reconciliation Logic (`PaymentController::verify`)
+Runs inside `DB::transaction()` with `lockForUpdate()` on both the payment and its invoice (serializes concurrent verifications):
+- `Σ VERIFIED amounts ≥ grand_total` → invoice `PAID` + `paid_at = now()`
+- `0 < Σ < grand_total` → `PARTIALLY_PAID`
+- `Σ = 0` → `UNPAID`
+- Summation uses `verifiedPaidAmount()` on the Invoice model via BC Math `bcadd`.
+
+### RBAC Policies
+- **PaymentPolicy** — `view` owner/Superadmin, `create` (invoice owner/Superadmin), `verify` Superadmin only
+- **InvoicePolicy** — `view` owner/Superadmin, `updatePaymentStatus` Superadmin only (manual override kept)
+
+### Key Files Created/Modified
+- `database/migrations/2026_08_14_add_payment_processing.php` — renames `invoices.tax_amount→ppn_amount`, adds `pph_amount`/`payment_term`, adds `products.pph_rate_percentage`, creates `payments`
+- `app/Enums/PaymentTerm.php`, `PaymentStatus.php`, `PaymentMethod.php` — new; `InvoiceStatus` gains `PARTIALLY_PAID`
+- `app/Models/Payment.php` — new; `Invoice` gains `payments()` + `verifiedPaidAmount()`; `Product` gains `pph_rate_percentage`
+- `app/Http/Requests/Payment/SubmitPaymentRequest.php`, `VerifyPaymentRequest.php` — new
+- `app/Http/Resources/Payment/PaymentResource.php` — new; `InvoiceResource` exposes `ppn_amount`, `pph_amount`, `payment_term`, `paid_amount`, `payments`
+- `app/Policies/PaymentPolicy.php` — new
+- `app/Http/Controllers/Api/Payment/PaymentController.php` — new (`store`, `index`, `verify`)
+- `app/Http/Controllers/Api/Bast/BastController.php` — invoice generation reworked for PPN/PPh/payment term
+- `routes/api.php` — payment routes
+- `database/factories/PaymentFactory.php` — new; `InvoiceFactory`/`ProductFactory` updated
+- `tests/Feature/Api/PaymentTest.php` — 14 tests; `InvoiceTest` updated for rename + PPh test
+
+### Verified
+`pint` ✅ · `php artisan test` ✅ 64 passed / 3 skipped (SQLite concurrency skips) · 384 assertions

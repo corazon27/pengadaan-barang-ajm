@@ -84,3 +84,14 @@
 - **BC Math precision** confirmed/enforced for all monetary computation in `BastController::generateInvoice()` (per-item tax = subtotal × rate ÷ 100, summed, then grand total; 2-decimal scale).
 - **Tests added**: duplicate RFQ→order conversion rejected (422), DB unique constraint on `orders.rfq_id` verified via direct insert (MySQL), foreign `rfq_item_id` rejection with no partial writes, and valid-item regression test. Concurrency/direct-insert tests skip on SQLite (in-memory DB does not reliably enforce unique constraints).
 - Verified: `pint` ✅, `php artisan test` ✅ 49 passed / 3 skipped (SQLite-only skips), 239 assertions.
+
+## [Module 5 - Payment Processing & Payment Terms (TOP / Tax Handling) API] - 2026-08-14
+- Added `PaymentTerm` enum (`IMMEDIATE`, `TOP_14`, `TOP_30`, `TOP_60`) with day counts; `invoices.payment_term` snapshot + auto `due_date = issued_date + term.days()` at issuance.
+- Renamed `invoices.tax_amount` → `ppn_amount`; added `invoices.pph_amount`, `invoices.payment_term`, and nullable `products.pph_rate_percentage` via migration `2026_08_14_add_payment_processing.php`; created `payments` table.
+- Tax breakdown exposed in `InvoiceResource`: `subtotal`, `ppn_amount`, `pph_amount`, `grand_total`, `payment_term`; per-item PPN/PPh via BC Math; **grand_total = subtotal + PPN** (PPh is a withholding, recorded separately).
+- Created `payments` ledger: buyer submits proof (`amount`, `payment_method`, `payment_date`, `proof_file` ≤5MB image/PDF, `notes`) → `PENDING_VERIFICATION`; Superadmin lists (status filter) and verifies/rejects.
+- Reconciliation on verify (transaction + `lockForUpdate`): Σ VERIFIED ≥ `grand_total` → `PAID` + `paid_at`; partial → `PARTIALLY_PAID`; none → `UNPAID`. `InvoiceStatus` gains `PARTIALLY_PAID`.
+- Added `SubmitPaymentRequest`, `VerifyPaymentRequest` (rejection reason required when rejecting), `PaymentResource`, `PaymentPolicy` (owner submit, Superadmin verify), `PaymentController` (`store`/`index`/`verify`).
+- Registered routes: `POST /invoices/{invoice}/payments`, `GET /payments`, `PATCH /payments/{payment}/verify`.
+- Added `PaymentTest` (14 tests): upload validation, owner isolation (403), full/partial/multi-payment reconciliation to `PAID`/`PARTIALLY_PAID`, rejection with reason, already-settled 422, RBAC, listing scoping, resource breakdown; `InvoiceTest` updated for the rename + PPh test.
+- Verified: `pint` ✅, `php artisan test` ✅ 64 passed / 3 skipped (SQLite-only skips), 384 assertions.

@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\InvoiceStatus;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentTerm;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
@@ -25,7 +28,9 @@ class Invoice extends Model
         'faktur_pajak_url',
         'amount_due',
         'subtotal',
-        'tax_amount',
+        'ppn_amount',
+        'pph_amount',
+        'payment_term',
         'grand_total',
         'issued_date',
         'due_date',
@@ -37,12 +42,14 @@ class Invoice extends Model
     {
         return [
             'status' => InvoiceStatus::class,
+            'payment_term' => PaymentTerm::class,
             'issued_date' => 'date',
             'due_date' => 'date',
             'paid_at' => 'datetime',
             'amount_due' => 'decimal:2',
             'subtotal' => 'decimal:2',
-            'tax_amount' => 'decimal:2',
+            'ppn_amount' => 'decimal:2',
+            'pph_amount' => 'decimal:2',
             'grand_total' => 'decimal:2',
         ];
     }
@@ -62,5 +69,24 @@ class Invoice extends Model
     public function bastDocument(): BelongsTo
     {
         return $this->belongsTo(BastDocument::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Total of verified payment amounts for this invoice, using BC Math.
+     */
+    public function verifiedPaidAmount(): string
+    {
+        return $this->payments()
+            ->where('status', PaymentStatus::VERIFIED)
+            ->get()
+            ->reduce(
+                fn (string $carry, Payment $payment) => bcadd($carry, (string) $payment->amount, 2),
+                '0.00'
+            );
     }
 }
