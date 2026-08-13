@@ -241,6 +241,84 @@ class RfqTest extends TestCase
         $response->assertForbidden();
     }
 
+    public function test_rfq_item_belonging_to_another_rfq_is_rejected(): void
+    {
+        $superadmin = User::factory()->superadmin()->create();
+        $buyer = User::factory()->buyerB2b()->create();
+
+        // Two separate RFQs, each with its own item
+        $rfqA = Rfq::factory()->create(['user_id' => $buyer->id, 'status' => RfqStatus::SUBMITTED]);
+        $rfqB = Rfq::factory()->create(['user_id' => $buyer->id, 'status' => RfqStatus::SUBMITTED]);
+
+        $itemBelongingToRfqB = RfqItem::factory()->create([
+            'rfq_id' => $rfqB->id,
+            'product_id' => Product::factory()->create()->id,
+            'quantity' => 1,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        // Attempt to respond to RFQ A using an item that actually belongs to RFQ B
+        $response = $this->postJson("/api/v1/rfqs/{$rfqA->id}/respond", [
+            'valid_until' => now()->addDays(30)->toDateString(),
+            'items' => [
+                [
+                    'rfq_item_id' => $itemBelongingToRfqB->id,
+                    'offered_price' => 50000.00,
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonValidationErrors('items.*.rfq_item_id');
+
+        // No partial writes should have occurred on either RFQ
+        $this->assertDatabaseHas('rfqs', [
+            'id' => $rfqA->id,
+            'status' => RfqStatus::SUBMITTED->value,
+        ]);
+        $this->assertDatabaseHas('rfqs', [
+            'id' => $rfqB->id,
+            'status' => RfqStatus::SUBMITTED->value,
+        ]);
+        $this->assertDatabaseHas('rfq_items', [
+            'id' => $itemBelongingToRfqB->id,
+            'negotiated_price' => null,
+        ]);
+    }
+
+    public function test_valid_rfq_items_still_work_after_fix(): void
+    {
+        $superadmin = User::factory()->superadmin()->create();
+        $buyer = User::factory()->buyerB2b()->create();
+        $rfq = Rfq::factory()->create(['user_id' => $buyer->id, 'status' => RfqStatus::SUBMITTED]);
+        $item = RfqItem::factory()->create([
+            'rfq_id' => $rfq->id,
+            'product_id' => Product::factory()->create()->id,
+            'quantity' => 5,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $response = $this->postJson("/api/v1/rfqs/{$rfq->id}/respond", [
+            'valid_until' => now()->addDays(30)->toDateString(),
+            'items' => [
+                [
+                    'rfq_item_id' => $item->id,
+                    'offered_price' => 75000.00,
+                ],
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', RfqStatus::QUOTED->value);
+
+        $item->refresh();
+        $this->assertEquals(75000.00, (float) $item->negotiated_price);
+    }
+
     public function test_non_owner_receives_403_on_status_update(): void
     {
         $buyer = User::factory()->buyerB2b()->create();

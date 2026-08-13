@@ -115,16 +115,27 @@ class RfqController extends Controller
         $validated = $request->validated();
         $items = $validated['items'] ?? [];
 
+        // Validate ownership before transaction
+        foreach ($items as $item) {
+            $rfqItem = RfqItem::find($item['rfq_item_id']);
+
+            if (! $rfqItem || $rfqItem->rfq_id !== $rfq->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'rfq_item_id does not belong to this RFQ.',
+                    'data' => null,
+                    'errors' => ['items.*.rfq_item_id' => ['rfq_item_id does not belong to this RFQ.']],
+                ], 422);
+            }
+        }
+
         $rfq = DB::transaction(function () use ($rfq, $validated, $items) {
             // Update each RFQ item with offered price (stored in negotiated_price)
             foreach ($items as $item) {
                 $rfqItem = RfqItem::find($item['rfq_item_id']);
-
-                if ($rfqItem && $rfqItem->rfq_id === $rfq->id) {
-                    $rfqItem->update([
-                        'negotiated_price' => $item['offered_price'],
-                    ]);
-                }
+                $rfqItem->update([
+                    'negotiated_price' => $item['offered_price'],
+                ]);
             }
 
             // Update RFQ with quotation details

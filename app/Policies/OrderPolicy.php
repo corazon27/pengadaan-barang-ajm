@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Enums\UserRole;
 use App\Models\Order;
+use App\Models\Rfq;
 use App\Models\User;
 
 class OrderPolicy
@@ -27,15 +28,15 @@ class OrderPolicy
     }
 
     /**
-     * Determine whether the user can create orders (convert an approved RFQ).
+     * Determine whether the user can create an order from the given RFQ.
      */
-    public function create(User $user): bool
+    public function create(User $user, Rfq $rfq): bool
     {
-        return in_array($user->role, [
-            UserRole::BUYER_B2B,
-            UserRole::BUYER_B2G,
-            UserRole::SUPERADMIN,
-        ], true);
+        if ($user->role === UserRole::SUPERADMIN) {
+            return true;
+        }
+
+        return $user->is($rfq->user);
     }
 
     /**

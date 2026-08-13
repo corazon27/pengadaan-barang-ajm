@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Rfq;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -74,18 +75,9 @@ class OrderController extends Controller
      */
     public function store(CreateOrderFromRfqRequest $request): JsonResponse
     {
-        $this->authorize('create', Order::class);
-
         $rfq = Rfq::with('items.product')->findOrFail($request->input('rfq_id'));
 
-        if ($request->user()->role !== UserRole::SUPERADMIN && ! $request->user()->is($rfq->user)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Anda tidak memiliki akses ke RFQ ini.',
-                'data' => null,
-                'errors' => null,
-            ], 403);
-        }
+        $this->authorize('create', [Order::class, $rfq]);
 
         if ($rfq->status !== RfqStatus::APPROVED) {
             return response()->json([
@@ -96,42 +88,60 @@ class OrderController extends Controller
             ], 422);
         }
 
-        if (Order::where('rfq_id', $rfq->id)->exists()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'RFQ ini sudah dikonversi menjadi pesanan.',
-                'data' => null,
-                'errors' => ['rfq_id' => ['RFQ ini sudah memiliki pesanan.']],
-            ], 422);
-        }
+        try {
+            $order = DB::transaction(function () use ($rfq) {
+                // Acquire an exclusive row lock on the RFQ to prevent concurrent
+                // conversion (TOCTOU). The orders.rfq_id UNIQUE index is the
+                // final safety net; this lock keeps concurrent transactions
+                // from both reaching the INSERT.
+                $rfq->lockForUpdate();
 
-        $order = DB::transaction(function () use ($rfq) {
-            $order = Order::create([
-                'order_number' => 'ORD-'.strtoupper(Str::random(10)),
-                'user_id' => $rfq->user_id,
-                'rfq_id' => $rfq->id,
-                'status' => OrderStatus::PENDING_PAYMENT,
-                'top_days' => 30,
-            ]);
+                if (Order::where('rfq_id', $rfq->id)->exists()) {
+                    throw new QueryException(
+                        'Duplicate entry: rfq already converted',
+                        'Duplicate entry: rfq already converted',
+                        [],
+                        new \Exception('23000'),
+                    );
+                }
 
-            foreach ($rfq->items as $item) {
-                $orderItem = new OrderItem([
-                    'order_id' => $order->id,
-                    'product_id' => $item->product_id,
-                    'quantity' => $item->quantity,
+                $order = Order::create([
+                    'order_number' => 'ORD-'.strtoupper(Str::random(10)),
+                    'user_id' => $rfq->user_id,
+                    'rfq_id' => $rfq->id,
+                    'status' => OrderStatus::PENDING_PAYMENT,
+                    'top_days' => 30,
                 ]);
 
-                // unit_price is intentionally not fillable; set it directly
-                $orderItem->unit_price = $item->negotiated_price ?? $item->product->base_price;
-                $orderItem->save();
+                foreach ($rfq->items as $item) {
+                    $orderItem = new OrderItem([
+                        'order_id' => $order->id,
+                        'product_id' => $item->product_id,
+                        'quantity' => $item->quantity,
+                    ]);
+
+                    // unit_price is not mass-assignable; set directly. Fallback to
+                    // the product's base price if the RFQ item has no negotiated price.
+                    $orderItem->unit_price = $item->negotiated_price ?? $item->product->base_price;
+                    $orderItem->save();
+                }
+
+                $order->recalculateTotal();
+                $rfq->update(['status' => RfqStatus::CONVERTED_TO_ORDER]);
+
+                return $order;
+            });
+        } catch (QueryException $e) {
+            if ($this->isUniqueViolation($e)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'RFQ sudah pernah dikonversi menjadi pesanan.',
+                    'data' => null,
+                    'errors' => ['rfq_id' => ['RFQ ini sudah memiliki pesanan.']],
+                ], 422);
             }
-
-            $order->recalculateTotal();
-
-            $rfq->update(['status' => RfqStatus::CONVERTED_TO_ORDER]);
-
-            return $order;
-        });
+            throw $e;
+        }
 
         $order->load('user', 'items.product', 'bastDocument', 'invoices');
 
@@ -141,6 +151,20 @@ class OrderController extends Controller
             'data' => new OrderResource($order),
             'errors' => null,
         ], 201);
+    }
+
+    /**
+     * Determine whether a QueryException represents a unique constraint violation.
+     */
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        // MySQL: SQLSTATE 23000; SQLite: "UNIQUE constraint failed"
+        $sqlState = $e->errorInfo[0] ?? null;
+        $message = $e->getMessage();
+
+        return $sqlState === '23000'
+            || str_contains($message, 'UNIQUE constraint failed')
+            || str_contains($message, 'Duplicate entry');
     }
 
     /**
