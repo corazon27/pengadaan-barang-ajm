@@ -76,3 +76,11 @@
 - Added `OrderPolicy`, `BastDocumentPolicy`, `InvoicePolicy`; `InvoiceResource` exposes `payment_status`; Superadmin-only invoice payment-status updates (sets `paid_at` on PAID).
 - Registered order/BAST/invoice routes under `/api/v1`.
 - Added `OrderTest` (10 tests) and `InvoiceTest` (8 tests) covering conversion rules, role isolation, status transitions, BAST generation/signing, invoice generation, and payment-status RBAC.
+
+## [Audit - Security, Concurrency & Precision Fixes] - 2026-08-14
+- **TOCTOU race condition fixed** in RFQ→Order conversion (`OrderController::store`): `lockForUpdate()` on the RFQ row inside `DB::transaction()` plus an in-transaction duplicate check; `QueryException` unique-violation is caught and returned as 422.
+- **RFQ item ownership enforced** (`RfqController::respond`): a submitted `rfq_item_id` belonging to a different RFQ is now rejected with HTTP 422 (`items.*.rfq_item_id` error) instead of being silently ignored; no partial writes occur.
+- **`OrderPolicy::create`** now accepts the target `Rfq` and verifies ownership (`user->is($rfq->user)`) or Superadmin; controller passes the RFQ instance.
+- **BC Math precision** confirmed/enforced for all monetary computation in `BastController::generateInvoice()` (per-item tax = subtotal × rate ÷ 100, summed, then grand total; 2-decimal scale).
+- **Tests added**: duplicate RFQ→order conversion rejected (422), DB unique constraint on `orders.rfq_id` verified via direct insert (MySQL), foreign `rfq_item_id` rejection with no partial writes, and valid-item regression test. Concurrency/direct-insert tests skip on SQLite (in-memory DB does not reliably enforce unique constraints).
+- Verified: `pint` ✅, `php artisan test` ✅ 49 passed / 3 skipped (SQLite-only skips), 239 assertions.

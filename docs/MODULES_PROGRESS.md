@@ -208,3 +208,35 @@ Side effects:
 - `routes/api.php` — order, BAST, and invoice routes
 - `tests/Feature/Api/OrderTest.php` — 10 tests (conversion, isolation, status transitions, BAST generation)
 - `tests/Feature/Api/InvoiceTest.php` — 8 tests (BAST signing → invoice, payment status updates, RBAC)
+
+---
+
+## Audit — Security, Concurrency & Precision Fixes
+
+### Concurrency (TOCTOU)
+- `OrderController::store` now calls `$rfq->lockForUpdate()` **inside** the transaction, then re-checks `Order::where('rfq_id', $rfq->id)->exists()` before creating the order. A `QueryException` with SQLSTATE `23000` (unique-violation) is caught and returned as HTTP 422.
+- `orders.rfq_id` retains its `UNIQUE` index (migration `2026_08_12_060604`) — the DB is the final safety net.
+
+### RFQ Item Ownership
+- `RfqController::respond` now validates that every submitted `rfq_item_id` belongs to the RFQ being responded to; a mismatch returns 422 (`items.*.rfq_item_id`) with **no partial writes**.
+
+### Authorization
+- `OrderPolicy::create(User $user, Rfq $rfq)` checks `$user->is($rfq->user)` or Superadmin; the controller passes the RFQ instance.
+
+### Monetary Precision
+- All tax / total calculations in `BastController::generateInvoice()` use BC Math (`bcadd`, `bcmul`, `bcdiv`) with 2-decimal scale; per-item tax = `subtotal × tax_rate ÷ 100`, summed across items.
+
+### New Tests Added
+| Test | File | Purpose |
+|------|------|---------|
+| `test_rfq_can_only_be_converted_to_one_order` | OrderTest | Second conversion → 422, exactly 1 order in DB |
+| `test_concurrent_conversion_is_prevented_by_db_unique_constraint` | OrderTest | Direct `INSERT` with same `rfq_id` → QueryException (skipped on SQLite) |
+| `test_database_prevents_duplicate_rfq_conversion` | OrderTest | Same as above, separate test (skipped on SQLite) |
+| `test_rfq_item_belonging_to_another_rfq_is_rejected` | RfqTest | Foreign `rfq_item_id` → 422, no DB writes |
+| `test_valid_rfq_items_still_work_after_fix` | RfqTest | Regression guard for valid respond flow |
+
+### Files Changed (commit `977148e`)
+`OrderController`, `OrderPolicy`, `RfqController`, `OrderTest`, `RfqTest`
+
+### Verified
+`pint` ✅ · `php artisan test` ✅ 49 passed / 3 skipped (SQLite concurrency skips) · 239 assertions
