@@ -13,6 +13,7 @@ use App\Http\Requests\Payment\VerifyPaymentRequest;
 use App\Http\Resources\Payment\PaymentResource;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Notifications\PaymentVerifiedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +129,16 @@ class PaymentController extends Controller
 
         $payment->refresh();
         $payment->load('user', 'verifiedBy', 'invoice');
+
+        // Notify the buyer that their payment has been verified. The invoice is
+        // re-fetched to reflect the reconciled status (PAID / PARTIALLY_PAID).
+        if ($newStatus === PaymentStatus::VERIFIED) {
+            $invoice = Invoice::find($payment->invoice_id);
+
+            if ($invoice && $invoice->order) {
+                $invoice->order->user->notify(new PaymentVerifiedNotification($payment, $invoice));
+            }
+        }
 
         return response()->json([
             'success' => true,

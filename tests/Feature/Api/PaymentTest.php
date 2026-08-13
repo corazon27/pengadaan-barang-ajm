@@ -14,8 +14,10 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\PaymentVerifiedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -154,6 +156,8 @@ class PaymentTest extends TestCase
 
     public function test_superadmin_verifies_full_payment_and_marks_invoice_paid(): void
     {
+        Notification::fake();
+
         [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
 
         $payment = Payment::factory()->pending()->create([
@@ -181,10 +185,16 @@ class PaymentTest extends TestCase
         $this->assertNull($payment->rejection_reason);
         $this->assertEquals(InvoiceStatus::PAID, $invoice->status);
         $this->assertNotNull($invoice->paid_at);
+
+        Notification::assertSentTo($buyer, PaymentVerifiedNotification::class, function ($notification) {
+            return $notification->invoice->status === InvoiceStatus::PAID;
+        });
     }
 
     public function test_superadmin_verifies_partial_payment_marks_invoice_partially_paid(): void
     {
+        Notification::fake();
+
         [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
 
         $payment = Payment::factory()->pending()->create([
@@ -202,6 +212,10 @@ class PaymentTest extends TestCase
         $invoice->refresh();
         $this->assertEquals(InvoiceStatus::PARTIALLY_PAID, $invoice->status);
         $this->assertNull($invoice->paid_at);
+
+        Notification::assertSentTo($buyer, PaymentVerifiedNotification::class, function ($notification) {
+            return $notification->invoice->status === InvoiceStatus::PARTIALLY_PAID;
+        });
     }
 
     public function test_superadmin_verifies_multiple_payments_accumulate_to_paid(): void

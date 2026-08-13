@@ -9,7 +9,10 @@ use App\Models\Product;
 use App\Models\Rfq;
 use App\Models\RfqItem;
 use App\Models\User;
+use App\Notifications\RfqRespondedNotification;
+use App\Notifications\RfqSubmittedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class RfqTest extends TestCase
@@ -18,7 +21,10 @@ class RfqTest extends TestCase
 
     public function test_buyer_can_submit_rfq_with_items(): void
     {
+        Notification::fake();
+
         $user = User::factory()->buyerB2b()->create();
+        $superadmin = User::factory()->superadmin()->create();
         $product = Product::factory()->create();
 
         $this->actingAs($user);
@@ -68,6 +74,8 @@ class RfqTest extends TestCase
             'quantity' => 10,
             'target_price' => 100000.00,
         ]);
+
+        Notification::assertSentTo($superadmin, RfqSubmittedNotification::class);
     }
 
     public function test_buyer_can_only_view_own_rfqs(): void
@@ -106,6 +114,8 @@ class RfqTest extends TestCase
 
     public function test_superadmin_can_respond_to_rfq(): void
     {
+        Notification::fake();
+
         $superadmin = User::factory()->superadmin()->create();
         $buyer = User::factory()->buyerB2b()->create();
 
@@ -141,6 +151,8 @@ class RfqTest extends TestCase
         $this->assertNotNull($rfq->valid_until);
         $rfqItem->refresh();
         $this->assertEquals(95000.00, $rfqItem->negotiated_price);
+
+        Notification::assertSentTo($buyer, RfqRespondedNotification::class);
     }
 
     public function test_buyer_can_accept_quoted_rfq(): void

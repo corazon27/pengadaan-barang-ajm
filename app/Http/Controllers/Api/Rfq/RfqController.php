@@ -14,9 +14,12 @@ use App\Http\Resources\Rfq\RfqResource;
 use App\Models\Rfq;
 use App\Models\RfqItem;
 use App\Models\User;
+use App\Notifications\RfqRespondedNotification;
+use App\Notifications\RfqSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class RfqController extends Controller
@@ -79,6 +82,12 @@ class RfqController extends Controller
 
             return $rfq->load('items.product', 'user');
         });
+
+        // Notify all Superadmins that a new RFQ is awaiting a quotation
+        Notification::send(
+            User::where('role', UserRole::SUPERADMIN)->get(),
+            new RfqSubmittedNotification($rfq)
+        );
 
         return response()->json([
             'success' => true,
@@ -147,6 +156,9 @@ class RfqController extends Controller
 
             return $rfq->load('items.product', 'user');
         });
+
+        // Notify the buyer that the quotation is ready
+        $rfq->user->notify(new RfqRespondedNotification($rfq));
 
         return response()->json([
             'success' => true,

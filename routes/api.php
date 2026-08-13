@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Bast\BastController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
+use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Product\ProductController;
@@ -101,4 +102,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invoices/{invoice}/payments', [PaymentController::class, 'store']);
     Route::get('/payments', [PaymentController::class, 'index']);
     Route::patch('/payments/{payment}/verify', [PaymentController::class, 'verify']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Notification Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
 });

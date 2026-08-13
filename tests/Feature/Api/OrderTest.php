@@ -12,9 +12,11 @@ use App\Models\Product;
 use App\Models\Rfq;
 use App\Models\RfqItem;
 use App\Models\User;
+use App\Notifications\OrderShippedNotification;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -163,6 +165,8 @@ class OrderTest extends TestCase
 
     public function test_superadmin_can_advance_order_to_delivered_and_generates_bast(): void
     {
+        Notification::fake();
+
         $superadmin = User::factory()->superadmin()->create();
         $buyer = User::factory()->buyerB2b()->create();
         $order = Order::factory()->create([
@@ -186,6 +190,8 @@ class OrderTest extends TestCase
             'order_id' => $order->id,
             'status' => BastStatus::PENDING_SIGNATURE->value,
         ]);
+
+        Notification::assertSentTo($buyer, OrderShippedNotification::class);
     }
 
     public function test_invalid_status_transition_returns_422(): void

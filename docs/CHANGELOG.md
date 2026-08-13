@@ -95,3 +95,12 @@
 - Registered routes: `POST /invoices/{invoice}/payments`, `GET /payments`, `PATCH /payments/{payment}/verify`.
 - Added `PaymentTest` (14 tests): upload validation, owner isolation (403), full/partial/multi-payment reconciliation to `PAID`/`PARTIALLY_PAID`, rejection with reason, already-settled 422, RBAC, listing scoping, resource breakdown; `InvoiceTest` updated for the rename + PPh test.
 - Verified: `pint` ✅, `php artisan test` ✅ 64 passed / 3 skipped (SQLite-only skips), 384 assertions.
+
+## [Module 6 - Notification System (In-App & Email) API] - 2026-08-14
+- Added `notifications` table (UUID PK via `uuidMorphs`, `type`, text `data`, nullable `read_at`) via migration `2026_08_14_create_notifications_table.php`; `App\Models\Notification` extends `DatabaseNotification` + `HasUuids` with an `isRead()` helper.
+- Added 4 queued notification classes (`ShouldQueue`, `database` + `mail` channels, Indonesian `MailMessage`): `RfqSubmittedNotification` (to all SUPERADMINs), `RfqRespondedNotification` (to RFQ owner), `OrderShippedNotification` (to buyer on `SHIPPED`), `PaymentVerifiedNotification` (to buyer on verification with reconciled `PAID`/`PARTIALLY_PAID` status). All triggers fire after the enclosing `DB::transaction` commits.
+- Added `NotificationResource` (`id`, `type` basename, `title`, `message`, `action_url`, `read_at`, `is_read`, `created_at`) and `NotificationController` (`index` with `data.items` + `data.pagination`, `markAsRead`, `readAll`); `NotificationPolicy` limits view to SUPERADMIN/recipient and read-marking to the recipient.
+- Registered routes: `GET /notifications`, `PATCH /notifications/{notification}/read`, `POST /notifications/read-all` (all `auth:sanctum`).
+- Wired dispatch triggers in `RfqController` (`store`, `respond`), `OrderController` (`updateStatus` on `SHIPPED`), and `PaymentController` (`verify` on `VERIFIED`).
+- Added `NotificationTest` (8 tests: newest-first list + read indicator, pagination meta, mark-one-read, read-all, 403 cross-user, 401 unauthenticated, real database-channel dispatch, per-buyer isolation); extended `RfqTest`/`OrderTest`/`PaymentTest` with `Notification::fake()` + `assertSentTo`.
+- Verified: `pint` ✅, `php artisan test` ✅ 72 passed / 3 skipped (SQLite-only skips), 453 assertions.

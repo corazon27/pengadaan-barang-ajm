@@ -15,6 +15,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Rfq;
 use App\Models\User;
+use App\Notifications\OrderShippedNotification;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -198,6 +199,12 @@ class OrderController extends Controller
 
             return $order;
         });
+
+        // Notify the buyer that the goods have been shipped and they should
+        // prepare to sign the BAST once the delivery arrives
+        if ($newStatus === OrderStatus::SHIPPED) {
+            $order->user->notify(new OrderShippedNotification($order));
+        }
 
         $order->load('user', 'items.product', 'bastDocument', 'invoices');
 

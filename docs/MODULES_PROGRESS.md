@@ -292,3 +292,48 @@ Runs inside `DB::transaction()` with `lockForUpdate()` on both the payment and i
 
 ### Verified
 `pint` ✅ · `php artisan test` ✅ 64 passed / 3 skipped (SQLite concurrency skips) · 384 assertions
+
+---
+
+## Module 6 — Notification System (In-App & Email) API
+
+### Implemented Routes & Methods
+| Method | Endpoint | Guard | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/v1/notifications` | `auth:sanctum` | Paginated, newest-first list of the caller's notifications |
+| PATCH | `/api/v1/notifications/{notification}/read` | `auth:sanctum` | Mark a single notification as read (recipient only) |
+| POST | `/api/v1/notifications/read-all` | `auth:sanctum` | Mark all of the caller's unread notifications as read |
+
+### Notification Classes (queued, `database` + `mail` channels)
+- `RfqSubmittedNotification` — sent to **all** `SUPERADMIN` users when a buyer submits an RFQ.
+- `RfqRespondedNotification` — sent to the **RFQ owner** when a Superadmin responds with a quote.
+- `OrderShippedNotification` — sent to the **buyer** when an order transitions to `SHIPPED`.
+- `PaymentVerifiedNotification` — sent to the **buyer** when a payment is verified, carrying the reconciled invoice status (`PAID` / `PARTIALLY_PAID`).
+
+All notifications implement `ShouldQueue`; `toArray()` returns structured data (`title`, `message`, `action_url`, entity id/number, `invoice_status` for payments); `toMail()` returns an Indonesian `MailMessage`. Triggers fire **after** the surrounding `DB::transaction` commits.
+
+### Delivery & Storage
+- `notifications` table: `uuid` PK (via `uuidMorphs('notifiable')`, matching the UUID `users.id`), `type`, text `data`, nullable `read_at`, timestamps.
+- `App\Models\Notification` extends `DatabaseNotification` + `HasUuids`; adds `isRead()` helper.
+- Production/dev use `QUEUE_CONNECTION=database`, `MAIL_MAILER=log` → run `php artisan queue:work`. Tests use `QUEUE_CONNECTION=sync` + `MAIL_MAILER=array` so notifications run inline.
+
+### API Response
+- `NotificationResource` fields: `id`, `type` (class basename), `title`, `message`, `action_url`, `read_at` (ISO), `is_read`, `created_at`.
+- List endpoint wraps results in `data.items` (flat array) + `data.pagination` (`current_page`, `per_page`, `total`, `last_page`).
+
+### RBAC Policies
+- **NotificationPolicy** — `view` SUPERADMIN or recipient; `markAsRead` (update) recipient only. A non-recipient `PATCH` returns 403.
+
+### Key Files Created/Modified
+- `database/migrations/2026_08_14_create_notifications_table.php` — schema
+- `app/Models/Notification.php` — new
+- `app/Policies/NotificationPolicy.php` — new
+- `app/Notifications/RfqSubmittedNotification.php`, `RfqRespondedNotification.php`, `OrderShippedNotification.php`, `PaymentVerifiedNotification.php` — new
+- `app/Http/Resources/Notification/NotificationResource.php` — new
+- `app/Http/Controllers/Api/Notification/NotificationController.php` — new (`index`, `markAsRead`, `readAll`)
+- `routes/api.php` — notification routes
+- `app/Http/Controllers/Api/Rfq/RfqController.php`, `Api/Order/OrderController.php`, `Api/Payment/PaymentController.php` — notification dispatch triggers
+- `tests/Feature/Api/NotificationTest.php` — 8 tests; `RfqTest`/`OrderTest`/`PaymentTest` extended with `Notification::fake()` + `assertSentTo`
+
+### Verified
+`pint` ✅ · `php artisan test` ✅ 72 passed / 3 skipped (SQLite concurrency skips) · 453 assertions
