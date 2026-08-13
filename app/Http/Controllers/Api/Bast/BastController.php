@@ -13,12 +13,15 @@ use App\Http\Resources\Bast\BastResource;
 use App\Models\BastDocument;
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class BastController extends Controller
 {
+    public function __construct(private readonly PdfService $pdfService) {}
+
     /**
      * Display the BAST document for an order.
      */
@@ -87,7 +90,6 @@ class BastController extends Controller
                 'signed_by' => $request->user()->id,
                 'signed_at' => now(),
                 'signed_date' => now()->toDateString(),
-                'bast_document_url' => 'https://example.com/bast/'.$bast->id.'.pdf',
                 'notes' => $request->input('notes'),
             ]);
 
@@ -138,11 +140,11 @@ class BastController extends Controller
 
         $paymentTerm = $this->resolvePaymentTerm((int) $order->top_days);
 
-        return Invoice::create([
+        $invoice = Invoice::create([
             'order_id' => $order->id,
             'bast_id' => $bast->id,
             'invoice_number' => $invoiceNumber,
-            'invoice_pdf_url' => 'https://example.com/invoices/'.$invoiceNumber.'.pdf',
+            'invoice_pdf_url' => '',
             'amount_due' => $grandTotal,
             'subtotal' => $subtotal,
             'ppn_amount' => $ppnAmount,
@@ -152,6 +154,21 @@ class BastController extends Controller
             'issued_date' => now()->toDateString(),
             'due_date' => now()->addDays($paymentTerm->days())->toDateString(),
         ]);
+
+        // Generate the invoice PDF. Failures are logged by the service and
+        // leave the URL empty so the invoice is still issued.
+        $path = $this->pdfService->generate(
+            'pdf.invoice',
+            ['invoice' => $invoice->load('order.user', 'order.items.product')],
+            'invoice',
+            'Invoice-'.$invoiceNumber.'.pdf'
+        );
+
+        if ($path !== '') {
+            $invoice->update(['invoice_pdf_url' => $path]);
+        }
+
+        return $invoice;
     }
 
     /**

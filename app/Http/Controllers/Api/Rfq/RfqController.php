@@ -16,6 +16,7 @@ use App\Models\RfqItem;
 use App\Models\User;
 use App\Notifications\RfqRespondedNotification;
 use App\Notifications\RfqSubmittedNotification;
+use App\Services\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,8 @@ use Illuminate\Support\Str;
 
 class RfqController extends Controller
 {
+    public function __construct(private readonly PdfService $pdfService) {}
+
     /**
      * Display a listing of the RFQs.
      */
@@ -159,6 +162,19 @@ class RfqController extends Controller
 
         // Notify the buyer that the quotation is ready
         $rfq->user->notify(new RfqRespondedNotification($rfq));
+
+        // Generate the Surat Penawaran Harga PDF. Failures are logged by the
+        // service and leave the URL null so the business action still succeeds.
+        $path = $this->pdfService->generate(
+            'pdf.rfq-quotation',
+            ['rfq' => $rfq],
+            'rfq',
+            'Surat-Penawaran-Harga-'.$rfq->rfq_number.'.pdf'
+        );
+
+        if ($path !== '') {
+            $rfq->update(['quotation_pdf_url' => $path]);
+        }
 
         return response()->json([
             'success' => true,

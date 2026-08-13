@@ -337,3 +337,51 @@ All notifications implement `ShouldQueue`; `toArray()` returns structured data (
 
 ### Verified
 `pint` ✅ · `php artisan test` ✅ 72 passed / 3 skipped (SQLite concurrency skips) · 453 assertions
+---
+
+## Module 7 - Document Engine (PDF Generation)
+
+### Implemented Routes & Methods
+| Method | Endpoint | Guard | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/v1/rfqs/{rfq}/quotation.pdf` | `auth:sanctum` + `RfqPolicy@view` | Stream the Surat Penawaran Harga (quotation) PDF as `application/pdf` (inline) |
+| GET | `/api/v1/orders/{order}/bast.pdf` | `auth:sanctum` + `BastDocumentPolicy@view` | Stream the BAST draft/signed PDF |
+| GET | `/api/v1/invoices/{invoice}/pdf` | `auth:sanctum` + `InvoicePolicy@view` | Stream the invoice PDF |
+
+Missing or ungenerated documents return **404** with `{ success:false, message:"Dokumen belum tersedia." }`.
+
+### PDF Generation Strategy
+- **Auto-generated on lifecycle events** (not on demand): quotation on `RfqController::respond`, BAST draft when order transitions to `SHIPPED`, invoice when the BAST is signed.
+- Library: `barryvdh/laravel-dompdf` (v3.1.2, pure PHP) rendering Blade templates under `resources/views/pdf/`.
+- Files stored on a private local **`documents`** disk (`storage/app/private/documents`) via `app/Services/PdfService.php::generate()`; a failure is caught + `report()`ed and the business action still succeeds with the stored URL left empty (download 404).
+- Stored paths: `rfqs.quotation_pdf_url`, `bast_documents.bast_document_url`, `invoices.invoice_pdf_url` (all exposed by existing resources).
+
+### Templates (`resources/views/pdf/`)
+- `partials/styles.blade.php` - shared A4/dompdf-compatible CSS.
+- `partials/kop-surat.blade.php` - letterhead (company identity + NIB/PKP/NPWP/address/contact + double rule).
+- `rfq-quotation.blade.php` - bill-to block, item list (qty, offered unit price, totals), `valid_until`, notes.
+- `bast.blade.php` - Pihak Pertama/Kedua blocks, item list, signature areas.
+- `invoice.blade.php` - bill-to, item list, Subtotal/PPN/PPh/grand total summary, bank transfer details from `config('company.bank')`, e-Faktur number placeholder.
+- Indonesian dates via `app()->setLocale('id')` + `\Illuminate\Support\Carbon::setLocale('id')` + `->translatedFormat('j F Y')`; money formatted `1.234.567,89` via a `$money` helper.
+
+### Company Letterhead Config (`config/company.php`)
+All keys are env-driven with sensible placeholders: `name`, `legal_entity`, `nib`, `pkp`, `npwp`, `address`, `phone`, `email`, `website`, and `bank` (`name`, `account_name`, `account_number`, `branch`). Edit the `.env` `COMPANY_*` values before production use.
+
+### Key Files Created/Modified
+- `composer.json` / `composer.lock` - added `barryvdh/laravel-dompdf`
+- `config/filesystems.php` - added `documents` disk
+- `config/company.php` - new letterhead config
+- `app/Services/PdfService.php` - new PDF render + store service
+- `app/Http/Controllers/Api/Document/DocumentController.php` - new download endpoints
+- `resources/views/pdf/partials/styles.blade.php`, `partials/kop-surat.blade.php`, `rfq-quotation.blade.php`, `bast.blade.php`, `invoice.blade.php` - templates
+- `app/Http/Controllers/Api/Rfq/RfqController.php` - quotation PDF hook in `respond`
+- `app/Http/Controllers/Api/Order/OrderController.php` - BAST creation + draft PDF moved from `DELIVERED` to `SHIPPED`
+- `app/Http/Controllers/Api/Bast/BastController.php` - invoice PDF generation in `generateInvoice()`; removed placeholder URLs
+- `routes/api.php` - 3 document download routes
+- `tests/Feature/Api/DocumentTest.php` - 10 tests (generation + storage, download 200/404/401/403, config completeness)
+
+### Behavior Note
+`BastDocument` records are now created when the order reaches `SHIPPED` (per the procurement state machine `PROCESSING -> SHIPPED -> BAST_SIGNED`), not `DELIVERED`. Signing still requires `DELIVERED` (existing guard unchanged).
+
+### Verified
+`pint` OK, `php artisan test` OK: 82 passed / 3 skipped (SQLite concurrency skips) / 506 assertions

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Bast\BastController;
+use App\Http\Controllers\Api\Document\DocumentController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
@@ -90,6 +91,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
     Route::patch('/invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Document Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/rfqs/{rfq}/quotation.pdf', [DocumentController::class, 'quotationPdf']);
+    Route::get('/orders/{order}/bast.pdf', [DocumentController::class, 'bastPdf']);
+    Route::get('/invoices/{invoice}/pdf', [DocumentController::class, 'invoicePdf']);
 });
 
 /*

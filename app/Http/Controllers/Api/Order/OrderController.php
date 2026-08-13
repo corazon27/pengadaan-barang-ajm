@@ -16,6 +16,7 @@ use App\Models\OrderItem;
 use App\Models\Rfq;
 use App\Models\User;
 use App\Notifications\OrderShippedNotification;
+use App\Services\PdfService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
+    public function __construct(private readonly PdfService $pdfService) {}
+
     /**
      * Display a listing of the orders.
      */
@@ -190,8 +193,9 @@ class OrderController extends Controller
         $order = DB::transaction(function () use ($order, $newStatus) {
             $order->update(['status' => $newStatus]);
 
-            // Auto-generate a BAST record when the order is delivered
-            if ($newStatus === OrderStatus::DELIVERED && $order->bastDocument()->doesntExist()) {
+            // Auto-generate a BAST record (and its draft) when the order is
+            // shipped, ready for signing once the goods arrive
+            if ($newStatus === OrderStatus::SHIPPED && $order->bastDocument()->doesntExist()) {
                 $order->bastDocument()->create([
                     'bast_number' => 'BAST-'.strtoupper(Str::random(10)),
                 ]);
@@ -204,6 +208,23 @@ class OrderController extends Controller
         // prepare to sign the BAST once the delivery arrives
         if ($newStatus === OrderStatus::SHIPPED) {
             $order->user->notify(new OrderShippedNotification($order));
+        }
+
+        // Generate the BAST draft PDF. Failures are logged by the service and
+        // leave the URL null so the status update still succeeds.
+        if ($newStatus === OrderStatus::SHIPPED && $order->bastDocument) {
+            $bast = $order->bastDocument;
+
+            $path = $this->pdfService->generate(
+                'pdf.bast',
+                ['bast' => $bast->load('order.user', 'order.items.product')],
+                'bast',
+                'BAST-'.$bast->bast_number.'.pdf'
+            );
+
+            if ($path !== '') {
+                $bast->update(['bast_document_url' => $path]);
+            }
         }
 
         $order->load('user', 'items.product', 'bastDocument', 'invoices');
