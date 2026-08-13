@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Rfq;
 
+use App\Enums\AuditAction;
 use App\Enums\RfqStatus;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -16,6 +17,7 @@ use App\Models\RfqItem;
 use App\Models\User;
 use App\Notifications\RfqRespondedNotification;
 use App\Notifications\RfqSubmittedNotification;
+use App\Services\AuditLogger;
 use App\Services\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,7 +27,10 @@ use Illuminate\Support\Str;
 
 class RfqController extends Controller
 {
-    public function __construct(private readonly PdfService $pdfService) {}
+    public function __construct(
+        private readonly PdfService $pdfService,
+        private readonly AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Display a listing of the RFQs.
@@ -92,6 +97,8 @@ class RfqController extends Controller
             new RfqSubmittedNotification($rfq)
         );
 
+        $this->auditLogger->log($request->user(), AuditAction::RFQ_CREATED, $rfq);
+
         return response()->json([
             'success' => true,
             'message' => 'RFQ berhasil dibuat',
@@ -126,6 +133,7 @@ class RfqController extends Controller
 
         $validated = $request->validated();
         $items = $validated['items'] ?? [];
+        $previousState = $this->auditLogger->snapshot($rfq);
 
         // Validate ownership before transaction
         foreach ($items as $item) {
@@ -163,6 +171,8 @@ class RfqController extends Controller
         // Notify the buyer that the quotation is ready
         $rfq->user->notify(new RfqRespondedNotification($rfq));
 
+        $this->auditLogger->log($request->user(), AuditAction::RFQ_QUOTED, $rfq, $previousState);
+
         // Generate the Surat Penawaran Harga PDF. Failures are logged by the
         // service and leave the URL null so the business action still succeeds.
         $path = $this->pdfService->generate(
@@ -193,6 +203,7 @@ class RfqController extends Controller
 
         $newStatus = RfqStatus::from($request->input('status'));
         $currentStatus = $rfq->status;
+        $previousState = $this->auditLogger->snapshot($rfq);
 
         // Validate status transitions
         if (! $this->isValidTransition($currentStatus, $newStatus, $request->user())) {
@@ -206,6 +217,8 @@ class RfqController extends Controller
 
         $rfq->update(['status' => $newStatus]);
         $rfq->load('user', 'items.product');
+
+        $this->auditLogger->log($request->user(), AuditAction::RFQ_STATUS_UPDATED, $rfq, $previousState);
 
         return response()->json([
             'success' => true,

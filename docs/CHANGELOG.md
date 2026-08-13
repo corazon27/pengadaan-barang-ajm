@@ -1,5 +1,13 @@
 # Project Changelog
 
+## [Module 8 - Audit Trail, Overdue Invoice Scheduler & Executive Analytics API] - 2026-08-13
+- Added failure-tolerant `AuditLogger` service + `AuditAction` enum logging creations and status transitions for RFQ / Order / BAST / Invoice / Payment (previous & new state snapshots).
+- Added `GET /api/v1/audit-logs` (Superadmin-only, filters `entity_type` + `action`, paginated) with `AuditLogResource` + `AuditLogPolicy`.
+- Added `invoices:check-overdue` command marking past-due `UNPAID`/`PARTIALLY_PAID` invoices `OVERDUE` in one transaction with one audit row each; registered to run daily via `withSchedule()` in `bootstrap/app.php`.
+- Added `GET /api/v1/analytics/dashboard` (Superadmin-only) reporting RFQs by status, Orders by status + value, outstanding receivables, verified payments, and quantity-weighted average TKDN.
+- Registered `AnalyticsPolicy` explicitly in `AppServiceProvider` (no backing model for auto-discovery).
+- Added `tests/Feature/Api/Module8Test.php` (14 tests) covering audit generation, listing/filtering, 401/403, the overdue command, and analytics metrics.
+
 ## [Phase 1 - Inisiasi Fondasi] - 2026-08-12
 - Configured `.env` for local MySQL (Laragon).
 - Created database `pengadaan_barang_ajm`.

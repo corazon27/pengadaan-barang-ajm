@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Payment;
 
+use App\Enums\AuditAction;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
@@ -14,6 +15,7 @@ use App\Http\Resources\Payment\PaymentResource;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Notifications\PaymentVerifiedNotification;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +23,8 @@ use Illuminate\Support\Facades\Storage;
 
 class PaymentController extends Controller
 {
+    public function __construct(private readonly AuditLogger $auditLogger) {}
+
     /**
      * Submit a payment proof for an invoice.
      */
@@ -53,6 +57,8 @@ class PaymentController extends Controller
         });
 
         $payment->load('user', 'invoice');
+
+        $this->auditLogger->log($request->user(), AuditAction::PAYMENT_SUBMITTED, $payment);
 
         return response()->json([
             'success' => true,
@@ -109,6 +115,8 @@ class PaymentController extends Controller
         }
 
         $newStatus = PaymentStatus::from($request->input('status'));
+        $previousPaymentState = $this->auditLogger->snapshot($payment);
+        $previousInvoiceState = $this->auditLogger->snapshot($payment->invoice);
 
         DB::transaction(function () use ($payment, $request, $newStatus) {
             // Lock the payment and its invoice to serialize concurrent verifications
@@ -130,10 +138,22 @@ class PaymentController extends Controller
         $payment->refresh();
         $payment->load('user', 'verifiedBy', 'invoice');
 
+        $this->auditLogger->log(
+            $request->user(),
+            $newStatus === PaymentStatus::VERIFIED ? AuditAction::PAYMENT_VERIFIED : AuditAction::PAYMENT_REJECTED,
+            $payment,
+            $previousPaymentState
+        );
+
+        $reconciledInvoice = Invoice::find($payment->invoice_id);
+        if ($reconciledInvoice && ($reconciledInvoice->status->value ?? null) !== ($previousInvoiceState['status'] ?? null)) {
+            $this->auditLogger->log($request->user(), AuditAction::INVOICE_STATUS_UPDATED, $reconciledInvoice, $previousInvoiceState);
+        }
+
         // Notify the buyer that their payment has been verified. The invoice is
         // re-fetched to reflect the reconciled status (PAID / PARTIALLY_PAID).
         if ($newStatus === PaymentStatus::VERIFIED) {
-            $invoice = Invoice::find($payment->invoice_id);
+            $invoice = $reconciledInvoice ?? Invoice::find($payment->invoice_id);
 
             if ($invoice && $invoice->order) {
                 $invoice->order->user->notify(new PaymentVerifiedNotification($payment, $invoice));

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Analytics\AnalyticsController;
+use App\Http\Controllers\Api\AuditLog\AuditLogController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Bast\BastController;
@@ -127,4 +129,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Audit Log & Analytics Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
 });

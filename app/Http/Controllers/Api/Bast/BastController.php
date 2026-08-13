@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Bast;
 
+use App\Enums\AuditAction;
 use App\Enums\BastStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentTerm;
@@ -13,6 +14,7 @@ use App\Http\Resources\Bast\BastResource;
 use App\Models\BastDocument;
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Services\AuditLogger;
 use App\Services\PdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,10 @@ use Illuminate\Support\Str;
 
 class BastController extends Controller
 {
-    public function __construct(private readonly PdfService $pdfService) {}
+    public function __construct(
+        private readonly PdfService $pdfService,
+        private readonly AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Display the BAST document for an order.
@@ -84,6 +89,10 @@ class BastController extends Controller
             ], 422);
         }
 
+        $previousState = $this->auditLogger->snapshot($bast);
+        $previousOrderState = $this->auditLogger->snapshot($order);
+        $hadNoInvoice = $order->invoices()->doesntExist();
+
         $bast = DB::transaction(function () use ($request, $order, $bast) {
             $bast->update([
                 'status' => BastStatus::SIGNED,
@@ -101,6 +110,13 @@ class BastController extends Controller
 
             return $bast->fresh(['order', 'signedBy']);
         });
+
+        $this->auditLogger->log($request->user(), AuditAction::BAST_SIGNED, $bast, $previousState);
+        $this->auditLogger->log($request->user(), AuditAction::ORDER_STATUS_UPDATED, $order, $previousOrderState);
+
+        if ($hadNoInvoice && $order->invoices()->exists()) {
+            $this->auditLogger->log($request->user(), AuditAction::INVOICE_CREATED, $order->invoices()->first());
+        }
 
         return response()->json([
             'success' => true,

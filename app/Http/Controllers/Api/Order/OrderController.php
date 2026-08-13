@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Order;
 
+use App\Enums\AuditAction;
 use App\Enums\OrderStatus;
 use App\Enums\RfqStatus;
 use App\Enums\UserRole;
@@ -16,6 +17,7 @@ use App\Models\OrderItem;
 use App\Models\Rfq;
 use App\Models\User;
 use App\Notifications\OrderShippedNotification;
+use App\Services\AuditLogger;
 use App\Services\PdfService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +27,10 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly PdfService $pdfService) {}
+    public function __construct(
+        private readonly PdfService $pdfService,
+        private readonly AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Display a listing of the orders.
@@ -149,6 +154,8 @@ class OrderController extends Controller
 
         $order->load('user', 'items.product', 'bastDocument', 'invoices');
 
+        $this->auditLogger->log($request->user(), AuditAction::ORDER_CREATED, $order);
+
         return response()->json([
             'success' => true,
             'message' => 'Pesanan berhasil dibuat',
@@ -190,6 +197,8 @@ class OrderController extends Controller
             ], 422);
         }
 
+        $previousState = $this->auditLogger->snapshot($order);
+
         $order = DB::transaction(function () use ($order, $newStatus) {
             $order->update(['status' => $newStatus]);
 
@@ -228,6 +237,12 @@ class OrderController extends Controller
         }
 
         $order->load('user', 'items.product', 'bastDocument', 'invoices');
+
+        $this->auditLogger->log($request->user(), AuditAction::ORDER_STATUS_UPDATED, $order, $previousState);
+
+        if ($newStatus === OrderStatus::SHIPPED && $order->bastDocument) {
+            $this->auditLogger->log($request->user(), AuditAction::BAST_CREATED, $order->bastDocument);
+        }
 
         return response()->json([
             'success' => true,

@@ -385,3 +385,47 @@ All keys are env-driven with sensible placeholders: `name`, `legal_entity`, `nib
 
 ### Verified
 `pint` OK, `php artisan test` OK: 82 passed / 3 skipped (SQLite concurrency skips) / 506 assertions
+
+## Module 8 - Audit Trail, Overdue Invoice Scheduler & Executive Analytics API
+
+**Status: COMPLETE**
+
+### Audit Trail Subsystem
+- `app/Services/AuditLogger.php` - failure-tolerant logger (`log()` + `snapshot()`) with a per-entity state field map; writes after the business transaction and `report()`s failures so auditing never aborts an action. System events pass `user_id => null`.
+- `app/Enums/AuditAction.php` - string enum of audited actions: `RFQ_CREATED`, `RFQ_QUOTED`, `RFQ_STATUS_UPDATED`, `ORDER_CREATED`, `ORDER_STATUS_UPDATED`, `BAST_CREATED`, `BAST_SIGNED`, `INVOICE_CREATED`, `INVOICE_STATUS_UPDATED`, `INVOICE_MARKED_OVERDUE`, `PAYMENT_SUBMITTED`, `PAYMENT_VERIFIED`, `PAYMENT_REJECTED`.
+- Hooks (post-transaction): `RfqController` (store/respond/updateStatus), `OrderController` (store/updateStatus incl. `BAST_CREATED` on SHIPPED), `BastController::sign` (`BAST_SIGNED` + `ORDER_STATUS_UPDATED` + `INVOICE_CREATED`), `InvoiceController::updatePaymentStatus`, `PaymentController` (store/verify incl. `INVOICE_STATUS_UPDATED` on reconciliation).
+- Schema: existing `audit_logs` table (uuid id, nullable `user_id`, `action`, `entity_type`, `entity_id`, `previous_state`/`new_state` JSON, `created_at`) + `AuditLog` model + `User::auditLogs()`.
+- `AuditLogController::index` - `GET /api/v1/audit-logs` (Superadmin only via `AuditLogPolicy@viewAny`), filters `entity_type` + `action` (invalid action => 422), `per_page`, `latest()` first, includes `user`.
+- `app/Http/Resources/AuditLog/AuditLogResource.php` - exposes user, action, entity, states, created_at.
+
+### Overdue Invoice Scheduler
+- `app/Console/Commands/CheckOverdueInvoices.php` - `php artisan invoices:check-overdue`: selects `UNPAID`/`PARTIALLY_PAID` invoices with `due_date < today`, flips them to `OVERDUE` in a single transaction, writes one `INVOICE_MARKED_OVERDUE` audit row per invoice (`user_id => null`), prints the affected count.
+- Registered daily via `->withSchedule(...)` in `bootstrap/app.php` (Laravel 13 idiom).
+
+### Executive Analytics API
+- `GET /api/v1/analytics/dashboard` - Superadmin only via `AnalyticsPolicy@view` (explicitly registered in `AppServiceProvider` since it has no backing model). Returns:
+  - `rfqs.by_status` + total
+  - `orders.by_status` (count + total value per status) + total count/value
+  - `outstanding_receivables.total` + per-status breakdown (UNPAID / PARTIALLY_PAID / OVERDUE sums of `amount_due`)
+  - `verified_payments.total_amount` + count (VERIFIED)
+  - `tkdn_compliance.average_tkdn_percentage` - quantity-weighted `SUM(tkdn_percentage * qty) / SUM(qty)`
+  - `generated_at`
+
+### Routes
+| Method | URI | Guard | Purpose |
+| GET | `/api/v1/audit-logs` | `auth:sanctum` + `AuditLogPolicy@viewAny` | Paginated audit trail, filters `entity_type`/`action` |
+| GET | `/api/v1/analytics/dashboard` | `auth:sanctum` + `AnalyticsPolicy@view` | Executive metrics dashboard |
+
+### Key Files Created/Modified
+- `app/Enums/AuditAction.php`, `app/Services/AuditLogger.php` - new
+- `app/Http/Controllers/Api/AuditLog/AuditLogController.php`, `app/Http/Resources/AuditLog/AuditLogResource.php`, `app/Policies/AuditLogPolicy.php` - new
+- `app/Http/Controllers/Api/Analytics/AnalyticsController.php`, `app/Policies/AnalyticsPolicy.php` - new
+- `app/Console/Commands/CheckOverdueInvoices.php` - new
+- `bootstrap/app.php` - `->withSchedule(...)` daily run
+- `app/Providers/AppServiceProvider.php` - explicit `Gate::policy` registration for AnalyticsPolicy
+- `app/Http/Controllers/Api/{Rfq,Order,Bast,Invoice,Payment}/*` - audit hooks
+- `routes/api.php` - audit-logs + analytics routes
+- `tests/Feature/Api/Module8Test.php` - 14 tests
+
+### Verified
+`pint` OK, `php artisan test` OK: 96 passed / 3 skipped (SQLite) / 599 assertions
