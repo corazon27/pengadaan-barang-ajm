@@ -1,5 +1,28 @@
 # Project Changelog
 
+## [Phase B - Foundation Hardening & Reliability Remediation] - 2026-08-13
+- **AUTH-2 (High):** native login rate limiting via `RateLimiter::for('login')` in `AppServiceProvider::boot()` — 5 attempts/min per email+IP with a 429 JSON envelope and `LOGIN_THROTTLED` audit row. (Not in `bootstrap/app.php`: the middleware closure runs before the cache provider, so it fatals.)
+- **SEC-2 (High):** `UserSeeder` is now fail-closed in production — requires `SEED_DEMO_USERS=true` and the `SEED_ADMIN_PASSWORD`/`SEED_BUYER_B2B_PASSWORD`/`SEED_BUYER_B2G_PASSWORD` env vars, else throws; dev/test stay deterministic. Config via new `app.demo` block; `.env.example` updated; `UserSeederTest` (4 tests) added.
+- **AUD-1 (Medium):** audit coverage extended — `USER_LOGIN`, `USER_LOGOUT`, `LOGIN_FAILED`, `LOGIN_THROTTLED`, `PROFILE_UPDATED`, `PRODUCT_CREATED`/`UPDATED`/`DELETED`; `audit_logs.entity_type/entity_id` nullable (migration `2026_08_13_091233_make_audit_log_entity_columns_nullable.php`); `AuditLogger::log()` accepts nullable entities; `AuditLogTest` (7 tests) added.
+- **SCHED-1 (Medium):** `CheckOverdueInvoices` now locks selected rows inside the transaction and runs with `->withoutOverlapping()`; idempotency regression test added.
+- **PERF-1 (Medium):** new `audit_logs` indexes (`created_at`, `(entity_type, action, created_at)`, `(action, created_at)`) — migration `2026_08_13_091945_add_performance_indexes_to_audit_logs.php`, EXPLAIN-verified on MySQL 8.4.3.
+- **QRY-1 / VAL-1 (Medium):** product search now `%term%` and properly grouped inside a `where(...)` closure; pagination clamped to 1..100 (default 15) via `Controller::perPage()` at all 7 listing controllers.
+- **P3:** `products.description` nullable at DB level (Option B, migration `2026_08_13_110000_make_product_description_nullable.php`); `PaymentFactory::verified()` sets `verified_by`; `ProductFactory` uses unique slugs; new `UniqueIdentifier` retry-loop service for ORD-/BAST-/INV-/RFQ- numbers.
+- **P3 (rollback fixes):** `2026_08_15_add_unique_index_on_orders_rfq_id::down()` drops the backing FK before the unique index; `2026_08_14_add_order_workflow_columns::down()` widens/remaps/narrows the status enum — both reproduced with data on MySQL 8.4.3 and fixed.
+- Verified: SQLite suite ✅ **146 / 144 passed / 2 pre-existing skips / 856 assertions**; MySQL 8.4.3 suite ✅ **146 / 146 / 0 skipped / 860 assertions**; `migrate:fresh` + full `migrate:rollback` ✅ on MySQL with data; `pint` ✅; `composer audit` ✅; `route:list` ✅.
+- **Gate decision: PASS.** Full report in `docs/PHASE_B_REMEDIATION_REPORT.md`.
+
+## [Phase A - Audit Remediation: Security, Data Integrity & Test Discovery] - 2026-08-15
+- **TEST-1 (High):** rewrote `tests/Feature/Api/ProductTest.php` with `test_` prefixes — PHPUnit 12 dropped `/** @test */`, so the class (9 tests) was silently excluded and the earlier "green" suite was a false green. Discovered tests now run.
+- **AUTH-1 (High):** `ProductController::destroy` now enforces `ProductPolicy@delete`; non-superadmin `DELETE /products/{product}` → 403 (was 200). Added `test_non_admin_receives_403_on_product_delete`.
+- **SEC-1 (Medium):** payment proofs now stored on the private `documents` disk (`payments/proofs/...`) with `proof_file_url` holding the private path (no public URL); added guarded `GET /api/v1/payments/{payment}/proof` streaming endpoint (200/401/403/404). `PaymentTest` 14 → 20 tests.
+- **INT-1 (Medium):** migration `2026_08_15_add_unique_invoice_per_order.php` (unique `invoices_order_unique` on `order_id`); `BastController::sign` now runs inside a transaction with `lockForUpdate()` on the order row and audits the locked order. Re-sign → 422, exactly one invoice guaranteed. `InvoiceTest` 8 → 13 tests.
+- **INT-2 (Medium):** migration `2026_08_15_relax_orders_top_days_check.php` relaxes the `orders.top_days` CHECK from `> 0` to `>= 0` (MySQL/PostgreSQL) so `IMMEDIATE` (0-day) terms persist; `IMMEDIATE` invoice `due_date = issued_date`. `Module8Test` analytics data restructured for the one-invoice-per-order invariant.
+- **INT-3 (High, discovered during MySQL verification):** the `orders.rfq_id` UNIQUE index declared in the create migration was never emitted by Laravel (chained `constrained()` + `unique()`), leaving the one-order-per-RFQ invariant unenforced at the DB level. Added idempotent migration `2026_08_15_add_unique_index_on_orders_rfq_id.php` (both engines); MySQL-only direct-insert concurrency tests now pass.
+- Rewrote `OrderTest::test_orders_table_has_unique_index_on_rfq_id` on `Schema::getIndexes()` (Laravel 13 removed `getDoctrineSchemaManager`); now runs on sqlite too. Fixed overdue-invoice test data to keep `due_date >= issued_date` (MySQL `invoices_due_after_issued`).
+- Verified: SQLite suite `vendor/bin/phpunit` ✅ **118 tests / 116 passed / 2 skipped / 690 assertions**; MySQL 8.4.3 suite ✅ **118 / 118 / 694 assertions / 0 skipped**; `migrate:fresh --seed` ✅ MySQL; `pint --test` ✅; `composer audit` ✅; `route:list` ✅.
+- **Gate decision: PASS.** Full report in `docs/PHASE_A_REMEDIATION_REPORT.md`.
+
 ## [Module 8 - Audit Trail, Overdue Invoice Scheduler & Executive Analytics API] - 2026-08-13
 - Added failure-tolerant `AuditLogger` service + `AuditAction` enum logging creations and status transitions for RFQ / Order / BAST / Invoice / Payment (previous & new state snapshots).
 - Added `GET /api/v1/audit-logs` (Superadmin-only, filters `entity_type` + `action`, paginated) with `AuditLogResource` + `AuditLogPolicy`.

@@ -123,4 +123,24 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Demo Seeder Credentials
+    |--------------------------------------------------------------------------
+    |
+    | These options control whether the demo UserSeeder is allowed to run at
+    | all, and which passwords it uses. In production the seeder fails closed:
+    | it refuses to run unless SEED_DEMO_USERS is explicitly enabled, and it
+    | never falls back to a known default password — the operator must supply
+    | every password through the environment.
+    |
+    */
+
+    'demo' => [
+        'seed_users' => (bool) env('SEED_DEMO_USERS', false),
+        'admin_password' => env('SEED_ADMIN_PASSWORD'),
+        'buyer_b2b_password' => env('SEED_BUYER_B2B_PASSWORD'),
+        'buyer_b2g_password' => env('SEED_BUYER_B2G_PASSWORD'),
+    ],
+
 ];

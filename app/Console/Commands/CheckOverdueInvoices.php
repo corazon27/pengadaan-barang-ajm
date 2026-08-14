@@ -29,14 +29,17 @@ class CheckOverdueInvoices extends Command
 
     public function handle(AuditLogger $auditLogger): int
     {
-        $dueInvoices = Invoice::query()
-            ->whereIn('status', [InvoiceStatus::UNPAID, InvoiceStatus::PARTIALLY_PAID])
-            ->where('due_date', '<', now()->startOfDay())
-            ->get();
-
         $affected = 0;
 
-        DB::transaction(function () use ($dueInvoices, $auditLogger, &$affected) {
+        DB::transaction(function () use ($auditLogger, &$affected) {
+            // Lock the qualifying rows inside the transaction so a concurrent
+            // run cannot process (or re-process) the same invoices.
+            $dueInvoices = Invoice::query()
+                ->lockForUpdate()
+                ->whereIn('status', [InvoiceStatus::UNPAID, InvoiceStatus::PARTIALLY_PAID])
+                ->where('due_date', '<', now()->startOfDay())
+                ->get();
+
             foreach ($dueInvoices as $invoice) {
                 $previousState = $auditLogger->snapshot($invoice);
 

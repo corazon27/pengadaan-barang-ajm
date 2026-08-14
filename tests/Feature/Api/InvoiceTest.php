@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -92,6 +93,88 @@ class InvoiceTest extends TestCase
             'ppn_amount' => 22000.00,
             'pph_amount' => 0.00,
             'grand_total' => 222000.00,
+        ]);
+    }
+
+    public function test_invoice_uses_snapshotted_rates_and_title_after_catalog_change(): void
+    {
+        $buyer = User::factory()->buyerB2b()->create();
+        $superadmin = User::factory()->superadmin()->create();
+        $product = Product::factory()->create([
+            'title' => 'Laptop Kantor',
+            'base_price' => 100000.00,
+            'tax_rate_percentage' => 11.00,
+            'pph_rate_percentage' => 2.00,
+        ]);
+
+        $order = Order::factory()->create([
+            'user_id' => $buyer->id,
+            'status' => OrderStatus::PENDING_PAYMENT,
+        ]);
+
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        // Catalog changes after the order must not leak into the invoice.
+        $product->update([
+            'title' => 'Laptop Kantor (Edisi Baru)',
+            'tax_rate_percentage' => 12.00,
+            'pph_rate_percentage' => 0.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        foreach ([OrderStatus::PROCESSING, OrderStatus::SHIPPED, OrderStatus::DELIVERED] as $status) {
+            $this->patchJson("/api/v1/orders/{$order->id}/status", [
+                'status' => $status->value,
+            ])->assertOk();
+        }
+
+        $this->actingAs($buyer);
+
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $invoice = $order->invoices()->first();
+        $this->assertNotNull($invoice);
+
+        // Snapshot rates frozen at order time are used, not the updated catalog.
+        $this->assertSame('200000.00', $invoice->subtotal);
+        $this->assertSame('22000.00', $invoice->ppn_amount);
+        $this->assertSame('4000.00', $invoice->pph_amount);
+        $this->assertSame('222000.00', $invoice->grand_total);
+        $this->assertSame('222000.00', $invoice->amount_due);
+    }
+
+    public function test_signing_bast_creates_exactly_one_invoice(): void
+    {
+        [$buyer, $superadmin, $order, $bast] = $this->deliveredOrderWithBast();
+
+        $this->actingAs($buyer);
+
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $this->assertSame(1, $order->invoices()->count());
+
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertStatus(422);
+
+        $this->assertSame(1, $order->invoices()->count());
+    }
+
+    public function test_order_cannot_have_more_than_one_invoice(): void
+    {
+        [$buyer, $superadmin, $order, $bast] = $this->deliveredOrderWithBast();
+
+        $this->actingAs($buyer);
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $this->expectException(QueryException::class);
+
+        Invoice::factory()->create([
+            'order_id' => $order->id,
+            'bast_id' => $bast->id,
         ]);
     }
 
@@ -213,6 +296,65 @@ class InvoiceTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
+    public function test_paid_invoice_cannot_revert_to_earlier_status(): void
+    {
+        [$buyer, $superadmin, $order, $bast] = $this->deliveredOrderWithBast();
+
+        $this->actingAs($buyer);
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $invoice = $order->invoices()->first();
+
+        $this->actingAs($superadmin);
+
+        $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+            'payment_status' => InvoiceStatus::PAID->value,
+        ])->assertOk();
+
+        // PAID is terminal: no transition back to UNPAID / PARTIALLY_PAID / OVERDUE.
+        foreach ([InvoiceStatus::UNPAID, InvoiceStatus::PARTIALLY_PAID, InvoiceStatus::OVERDUE] as $status) {
+            $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+                'payment_status' => $status->value,
+            ])->assertStatus(422)
+                ->assertJsonPath('success', false)
+                ->assertJsonPath('data', null);
+        }
+
+        $invoice->refresh();
+        $this->assertEquals(InvoiceStatus::PAID, $invoice->status);
+
+        // Idempotent re-application of PAID is allowed.
+        $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+            'payment_status' => InvoiceStatus::PAID->value,
+        ])->assertOk();
+    }
+
+    public function test_overdue_invoice_cannot_revert_to_unpaid(): void
+    {
+        [$buyer, $superadmin, $order, $bast] = $this->deliveredOrderWithBast();
+
+        $this->actingAs($buyer);
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $invoice = $order->invoices()->first();
+
+        $this->actingAs($superadmin);
+
+        $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+            'payment_status' => InvoiceStatus::OVERDUE->value,
+        ])->assertOk();
+
+        // OVERDUE may move forward (partial / paid) but not regress to UNPAID.
+        $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+            'payment_status' => InvoiceStatus::UNPAID->value,
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->patchJson("/api/v1/invoices/{$invoice->id}/payment-status", [
+            'payment_status' => InvoiceStatus::PARTIALLY_PAID->value,
+        ])->assertOk();
+    }
+
     public function test_invoice_records_pph_withholding_without_adding_to_grand_total(): void
     {
         $buyer = User::factory()->buyerB2b()->create();
@@ -251,6 +393,48 @@ class InvoiceTest extends TestCase
         $this->assertSame('3000.00', $invoice->pph_amount);
         $this->assertSame('222000.00', $invoice->grand_total);
         $this->assertSame('222000.00', $invoice->amount_due);
+    }
+
+    public function test_order_accepts_zero_top_days_for_immediate_payment(): void
+    {
+        $order = Order::factory()->create(['top_days' => 0]);
+
+        $this->assertSame(0, $order->top_days);
+    }
+
+    public function test_immediate_payment_term_sets_due_date_on_issued_date(): void
+    {
+        $buyer = User::factory()->buyerB2b()->create();
+        $superadmin = User::factory()->superadmin()->create();
+        $product = Product::factory()->create(['base_price' => 100000.00, 'tax_rate_percentage' => 11.00]);
+
+        $order = Order::factory()->create([
+            'user_id' => $buyer->id,
+            'status' => OrderStatus::PENDING_PAYMENT,
+            'top_days' => 0,
+        ]);
+
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        foreach ([OrderStatus::PROCESSING, OrderStatus::SHIPPED, OrderStatus::DELIVERED] as $status) {
+            $this->patchJson("/api/v1/orders/{$order->id}/status", [
+                'status' => $status->value,
+            ])->assertOk();
+        }
+
+        $this->actingAs($buyer);
+        $this->postJson("/api/v1/orders/{$order->id}/bast/sign")->assertOk();
+
+        $invoice = $order->invoices()->first();
+
+        $this->assertEquals(PaymentTerm::IMMEDIATE, $invoice->payment_term);
+        $this->assertSame($invoice->issued_date->toDateString(), $invoice->due_date->toDateString());
     }
 
     public function test_invoice_listing_is_scoped_by_role(): void

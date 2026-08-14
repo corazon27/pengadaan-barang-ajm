@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Product;
 
+use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use App\Http\Resources\Product\ProductResource;
 use App\Models\Product;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
+    public function __construct(private readonly AuditLogger $auditLogger) {}
+
     /**
      * Display a paginated listing of the products.
      */
@@ -23,8 +27,10 @@ class ProductController extends Controller
 
         // Apply filters
         if ($search = $request->input('search')) {
-            $query->where('title', 'like', "%{$search}");
-            $query->orWhere('sku', 'like', "%{$search}");
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%");
+            });
         }
 
         if ($isSni = $request->input('is_sni')) {
@@ -39,7 +45,7 @@ class ProductController extends Controller
             $query->where('stock', '>', 0);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $products = $query->paginate($perPage);
 
         return response()->json([
@@ -83,6 +89,8 @@ class ProductController extends Controller
 
         $product = Product::create($validated);
 
+        $this->auditLogger->log($request->user(), AuditAction::PRODUCT_CREATED, $product);
+
         return response()->json([
             'success' => true,
             'message' => 'Product berhasil dibuat',
@@ -109,7 +117,10 @@ class ProductController extends Controller
 
         $validated = $request->validated();
 
+        $previous = $this->auditLogger->snapshot($product);
         $product->update($validated);
+
+        $this->auditLogger->log($request->user(), AuditAction::PRODUCT_UPDATED, $product, $previous);
 
         return response()->json([
             'success' => true,
@@ -122,7 +133,7 @@ class ProductController extends Controller
     /**
      * Delete a product.
      */
-    public function destroy($product): JsonResponse
+    public function destroy(Request $request, $product): JsonResponse
     {
         $product = Product::find($product) ?? $this->findBySlug($product);
 
@@ -135,6 +146,9 @@ class ProductController extends Controller
             ], 404);
         }
 
+        $this->authorize('delete', $product);
+
+        $this->auditLogger->log($request->user(), AuditAction::PRODUCT_DELETED, $product);
         $product->delete();
 
         return response()->json([

@@ -8,6 +8,7 @@ use App\Enums\AuditAction;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
+use App\Exceptions\PaymentOverpaymentException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payment\SubmitPaymentRequest;
 use App\Http\Requests\Payment\VerifyPaymentRequest;
@@ -20,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PaymentController extends Controller
 {
@@ -42,7 +44,7 @@ class PaymentController extends Controller
         }
 
         $file = $request->file('proof_file');
-        $path = Storage::disk('public')->putFile('payments/proofs', $file);
+        $path = Storage::disk('documents')->putFile('payments/proofs', $file);
 
         $payment = DB::transaction(function () use ($request, $invoice, $path) {
             return Payment::create([
@@ -51,7 +53,7 @@ class PaymentController extends Controller
                 'amount' => $request->input('amount'),
                 'payment_method' => $request->input('payment_method'),
                 'payment_date' => $request->input('payment_date'),
-                'proof_file_url' => Storage::disk('public')->url($path),
+                'proof_file_url' => $path,
                 'notes' => $request->input('notes'),
             ]);
         });
@@ -66,6 +68,27 @@ class PaymentController extends Controller
             'data' => new PaymentResource($payment),
             'errors' => null,
         ], 201);
+    }
+
+    /**
+     * Stream the stored payment proof to an authorized requester.
+     */
+    public function downloadProof(Payment $payment): StreamedResponse|JsonResponse
+    {
+        $this->authorize('view', $payment);
+
+        $path = $payment->proof_file_url;
+
+        if (! $path || ! Storage::disk('documents')->exists($path)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bukti pembayaran tidak ditemukan.',
+                'data' => null,
+                'errors' => null,
+            ], 404);
+        }
+
+        return Storage::disk('documents')->response($path);
     }
 
     /**
@@ -87,7 +110,7 @@ class PaymentController extends Controller
             $query->where('status', $status);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $payments = $query->latest()->paginate($perPage);
 
         return response()->json([
@@ -118,22 +141,35 @@ class PaymentController extends Controller
         $previousPaymentState = $this->auditLogger->snapshot($payment);
         $previousInvoiceState = $this->auditLogger->snapshot($payment->invoice);
 
-        DB::transaction(function () use ($payment, $request, $newStatus) {
-            // Lock the payment and its invoice to serialize concurrent verifications
-            $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
-            $invoice = Invoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
+        try {
+            DB::transaction(function () use ($payment, $request, $newStatus) {
+                // Lock the payment and its invoice to serialize concurrent verifications
+                $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+                $invoice = Invoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
 
-            $lockedPayment->update([
-                'status' => $newStatus,
-                'verified_by' => $request->user()->id,
-                'verified_at' => now(),
-                'rejection_reason' => $newStatus === PaymentStatus::REJECTED
-                    ? $request->input('rejection_reason')
-                    : null,
-            ]);
+                if ($newStatus === PaymentStatus::VERIFIED) {
+                    $this->guardAgainstOverpayment($invoice, $lockedPayment->amount);
+                }
 
-            $this->reconcileInvoice($invoice);
-        });
+                $lockedPayment->update([
+                    'status' => $newStatus,
+                    'verified_by' => $request->user()->id,
+                    'verified_at' => now(),
+                    'rejection_reason' => $newStatus === PaymentStatus::REJECTED
+                        ? $request->input('rejection_reason')
+                        : null,
+                ]);
+
+                $this->reconcileInvoice($invoice);
+            });
+        } catch (PaymentOverpaymentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Verifikasi pembayaran ditolak: jumlah melebihi total tagihan.',
+                'data' => null,
+                'errors' => ['amount' => [$e->getMessage()]],
+            ], 422);
+        }
 
         $payment->refresh();
         $payment->load('user', 'verifiedBy', 'invoice');
@@ -168,6 +204,25 @@ class PaymentController extends Controller
             'data' => new PaymentResource($payment),
             'errors' => null,
         ], 200);
+    }
+
+    /**
+     * Reject verification when the payment would push the verified total past
+     * the invoice grand total (INT-4). Uses BC Math; exact and partial-settlement
+     * sums are allowed.
+     *
+     * @param  float|int|string  $amount
+     */
+    private function guardAgainstOverpayment(Invoice $invoice, $amount): void
+    {
+        $projected = bcadd($invoice->verifiedPaidAmount(), (string) $amount, 2);
+        $grandTotal = (string) $invoice->grand_total;
+
+        if (bccomp($projected, $grandTotal, 2) > 0) {
+            throw new PaymentOverpaymentException(
+                "Total pembayaran terverifikasi Rp{$projected} melebihi tagihan Rp{$grandTotal}."
+            );
+        }
     }
 
     /**

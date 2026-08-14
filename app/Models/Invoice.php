@@ -89,4 +89,40 @@ class Invoice extends Model
                 '0.00'
             );
     }
+
+    /**
+     * Allowed status transitions for the invoice payment state machine (INT-6).
+     * Self-transitions are permitted so idempotent updates do not fail.
+     *
+     * @return list<string>
+     */
+    public static function allowedTransitionsFrom(InvoiceStatus $from): array
+    {
+        return match ($from) {
+            InvoiceStatus::UNPAID => [
+                InvoiceStatus::UNPAID->value,
+                InvoiceStatus::PARTIALLY_PAID->value,
+                InvoiceStatus::OVERDUE->value,
+                InvoiceStatus::PAID->value,
+            ],
+            InvoiceStatus::PARTIALLY_PAID => [
+                InvoiceStatus::PARTIALLY_PAID->value,
+                InvoiceStatus::PAID->value,
+                InvoiceStatus::OVERDUE->value,
+            ],
+            InvoiceStatus::OVERDUE => [
+                InvoiceStatus::OVERDUE->value,
+                InvoiceStatus::PARTIALLY_PAID->value,
+                InvoiceStatus::PAID->value,
+            ],
+            InvoiceStatus::PAID => [
+                InvoiceStatus::PAID->value,
+            ],
+        };
+    }
+
+    public function canTransitionTo(InvoiceStatus $to): bool
+    {
+        return in_array($to->value, self::allowedTransitionsFrom($this->status), true);
+    }
 }

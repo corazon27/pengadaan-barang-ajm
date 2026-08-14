@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Enums\OrderStatus;
 use App\Enums\RfqStatus;
 use App\Models\Product;
 use App\Models\Rfq;
@@ -76,6 +77,52 @@ class RfqTest extends TestCase
         ]);
 
         Notification::assertSentTo($superadmin, RfqSubmittedNotification::class);
+    }
+
+    public function test_rfq_can_be_submitted_for_out_of_stock_product(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->buyerB2b()->create();
+        $outOfStock = Product::factory()->create(['stock' => 0]);
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/v1/rfqs', [
+            'items' => [
+                [
+                    'product_id' => $outOfStock->id,
+                    'quantity' => 10,
+                ],
+            ],
+        ]);
+
+        // Stock is informational only (INT-3): it must never block an RFQ.
+        $response->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', RfqStatus::SUBMITTED->value)
+            ->assertJsonPath('data.items.0.product_id', $outOfStock->id);
+    }
+
+    public function test_order_can_be_created_from_approved_rfq_for_low_stock_product(): void
+    {
+        $buyer = User::factory()->buyerB2b()->create();
+        $lowStock = Product::factory()->create(['stock' => 1, 'base_price' => 100000.00]);
+        $rfq = Rfq::factory()->create(['user_id' => $buyer->id, 'status' => RfqStatus::APPROVED]);
+        RfqItem::factory()->create([
+            'rfq_id' => $rfq->id,
+            'product_id' => $lowStock->id,
+            'quantity' => 5,
+        ]);
+
+        $this->actingAs($buyer);
+
+        // Stock does not reserve or block order conversion (INT-3).
+        $this->postJson('/api/v1/orders', [
+            'rfq_id' => $rfq->id,
+        ])->assertCreated()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.status', OrderStatus::PENDING_PAYMENT->value);
     }
 
     public function test_buyer_can_only_view_own_rfqs(): void

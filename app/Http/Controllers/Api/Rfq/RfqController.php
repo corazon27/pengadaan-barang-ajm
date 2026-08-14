@@ -19,11 +19,11 @@ use App\Notifications\RfqRespondedNotification;
 use App\Notifications\RfqSubmittedNotification;
 use App\Services\AuditLogger;
 use App\Services\PdfService;
+use App\Services\UniqueIdentifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Str;
 
 class RfqController extends Controller
 {
@@ -51,7 +51,7 @@ class RfqController extends Controller
             $query->where('status', $status);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $rfqs = $query->latest()->paginate($perPage);
 
         return response()->json([
@@ -69,7 +69,7 @@ class RfqController extends Controller
     {
         $validated = $request->validated();
         $items = $validated['items'] ?? [];
-        $rfqNumber = 'RFQ-'.strtoupper(Str::random(10));
+        $rfqNumber = UniqueIdentifier::generate('RFQ', Rfq::class, 'rfq_number');
 
         $rfq = DB::transaction(function () use ($validated, $items, $rfqNumber, $request) {
             $rfq = Rfq::create([

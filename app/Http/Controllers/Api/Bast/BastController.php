@@ -16,9 +16,9 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\AuditLogger;
 use App\Services\PdfService;
+use App\Services\UniqueIdentifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class BastController extends Controller
 {
@@ -93,7 +93,14 @@ class BastController extends Controller
         $previousOrderState = $this->auditLogger->snapshot($order);
         $hadNoInvoice = $order->invoices()->doesntExist();
 
-        $bast = DB::transaction(function () use ($request, $order, $bast) {
+        $lockedOrder = null;
+
+        $bast = DB::transaction(function () use ($request, $order, $bast, &$lockedOrder) {
+            // Lock the order row so concurrent BAST sign requests serialize;
+            // the second request re-reads the latest committed state and skips
+            // invoice generation (see invoices_order_unique constraint).
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+
             $bast->update([
                 'status' => BastStatus::SIGNED,
                 'signed_by' => $request->user()->id,
@@ -102,20 +109,20 @@ class BastController extends Controller
                 'notes' => $request->input('notes'),
             ]);
 
-            $order->update(['status' => OrderStatus::COMPLETED]);
+            $lockedOrder->update(['status' => OrderStatus::COMPLETED]);
 
-            if ($order->invoices()->doesntExist()) {
-                $this->generateInvoice($order, $bast);
+            if ($lockedOrder->invoices()->doesntExist()) {
+                $this->generateInvoice($lockedOrder, $bast);
             }
 
             return $bast->fresh(['order', 'signedBy']);
         });
 
         $this->auditLogger->log($request->user(), AuditAction::BAST_SIGNED, $bast, $previousState);
-        $this->auditLogger->log($request->user(), AuditAction::ORDER_STATUS_UPDATED, $order, $previousOrderState);
+        $this->auditLogger->log($request->user(), AuditAction::ORDER_STATUS_UPDATED, $lockedOrder, $previousOrderState);
 
-        if ($hadNoInvoice && $order->invoices()->exists()) {
-            $this->auditLogger->log($request->user(), AuditAction::INVOICE_CREATED, $order->invoices()->first());
+        if ($hadNoInvoice && $lockedOrder->invoices()->exists()) {
+            $this->auditLogger->log($request->user(), AuditAction::INVOICE_CREATED, $lockedOrder->invoices()->first());
         }
 
         return response()->json([
@@ -131,19 +138,20 @@ class BastController extends Controller
      */
     private function generateInvoice(Order $order, BastDocument $bast): Invoice
     {
-        $invoiceNumber = 'INV-'.strtoupper(Str::random(10));
+        $invoiceNumber = UniqueIdentifier::generate('INV', Invoice::class, 'invoice_number');
 
-        $subtotal = (float) $order->total_amount;
+        // The order total was already finalized with BC Math (INT-5).
+        $subtotal = (string) $order->total_amount;
 
-        // PPN and optional PPh withholding are computed per item from the
-        // product rates, using BC Math for 2-decimal precision.
-        [$ppnAmount, $pphAmount] = $order->items()->with('product')->get()->reduce(
+        // PPN and optional PPh withholding are computed per item from the rates
+        // frozen at order time (INT-7), using BC Math for 2-decimal precision.
+        [$ppnAmount, $pphAmount] = $order->items()->get()->reduce(
             function (array $carry, $item) {
-                $ppnRate = (float) ($item->product->tax_rate_percentage ?? 0);
-                $pphRate = (float) ($item->product->pph_rate_percentage ?? 0);
+                $ppnRate = (string) ($item->ppn_rate_snapshot ?? 0);
+                $pphRate = (string) ($item->pph_rate_snapshot ?? 0);
 
-                $carry[0] = bcadd($carry[0], bcmul((string) $item->subtotal, (string) ($ppnRate / 100), 6), 2);
-                $carry[1] = bcadd($carry[1], bcmul((string) $item->subtotal, (string) ($pphRate / 100), 6), 2);
+                $carry[0] = bcadd($carry[0], bcmul((string) $item->subtotal, bcdiv($ppnRate, '100', 6), 6), 2);
+                $carry[1] = bcadd($carry[1], bcmul((string) $item->subtotal, bcdiv($pphRate, '100', 6), 6), 2);
 
                 return $carry;
             },

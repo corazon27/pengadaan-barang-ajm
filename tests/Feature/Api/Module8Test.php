@@ -242,16 +242,22 @@ class Module8Test extends TestCase
 
     public function test_overdue_command_marks_past_due_invoices_and_logs(): void
     {
+        // issued_date defaults to now(); MySQL enforces invoices_due_after_issued
+        // (due_date >= issued_date), so simulate overdue invoices by dating the
+        // issue 40 days back rather than pushing due_date into the past alone.
         $unpaid = Invoice::factory()->create([
             'status' => InvoiceStatus::UNPAID,
+            'issued_date' => now()->subDays(40)->toDateString(),
             'due_date' => now()->subDays(5)->toDateString(),
         ]);
         $partiallyPaid = Invoice::factory()->create([
             'status' => InvoiceStatus::PARTIALLY_PAID,
+            'issued_date' => now()->subDays(40)->toDateString(),
             'due_date' => now()->subDay()->toDateString(),
         ]);
         $paid = Invoice::factory()->create([
             'status' => InvoiceStatus::PAID,
+            'issued_date' => now()->subDays(40)->toDateString(),
             'due_date' => now()->subDays(10)->toDateString(),
         ]);
         $future = Invoice::factory()->create([
@@ -297,6 +303,29 @@ class Module8Test extends TestCase
         $this->assertArrayHasKey('invoices:check-overdue', Artisan::all());
     }
 
+    public function test_overdue_command_is_idempotent_across_runs(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'status' => InvoiceStatus::UNPAID,
+            'issued_date' => now()->subDays(40)->toDateString(),
+            'due_date' => now()->subDays(5)->toDateString(),
+        ]);
+
+        $this->artisan('invoices:check-overdue')->assertExitCode(0);
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoice->id,
+            'status' => InvoiceStatus::OVERDUE->value,
+        ]);
+        $this->assertDatabaseCount('audit_logs', 1);
+
+        // A second run must not re-process the already-overdue invoice.
+        $this->artisan('invoices:check-overdue')
+            ->expectsOutputToContain('0')
+            ->assertExitCode(0);
+
+        $this->assertDatabaseCount('audit_logs', 1);
+    }
+
     public function test_superadmin_can_view_analytics_dashboard(): void
     {
         $superadmin = User::factory()->superadmin()->create();
@@ -334,6 +363,11 @@ class Module8Test extends TestCase
             'quantity' => 2,
         ]);
 
+        $paidOrder = Order::factory()->create([
+            'user_id' => $buyer->id,
+            'status' => OrderStatus::PENDING_PAYMENT,
+        ]);
+
         $bast = BastDocument::factory()->create(['order_id' => $shippedOrder->id]);
         Invoice::factory()->create([
             'order_id' => $shippedOrder->id,
@@ -352,8 +386,8 @@ class Module8Test extends TestCase
             'status' => InvoiceStatus::OVERDUE,
         ]);
         Invoice::factory()->create([
-            'order_id' => $deliveredOrder->id,
-            'bast_id' => BastDocument::factory()->create(['order_id' => $deliveredOrder->id])->id,
+            'order_id' => $paidOrder->id,
+            'bast_id' => BastDocument::factory()->create(['order_id' => $paidOrder->id])->id,
             'amount_due' => 100.00,
             'grand_total' => 100.00,
             'subtotal' => 100.00,
@@ -372,7 +406,7 @@ class Module8Test extends TestCase
         $this->assertSame(2, $response->json('data.rfqs.by_status.'.RfqStatus::SUBMITTED->value));
         $this->assertSame(1, $response->json('data.rfqs.by_status.'.RfqStatus::QUOTED->value));
 
-        $this->assertSame(2, $response->json('data.orders.total_count'));
+        $this->assertSame(3, $response->json('data.orders.total_count'));
         $this->assertEqualsWithDelta(1400.0, $response->json('data.orders.total_value'), 0.001);
         $this->assertSame(1, $response->json('data.orders.by_status.'.OrderStatus::SHIPPED->value.'.count'));
         $this->assertEqualsWithDelta(1000.0, $response->json('data.orders.by_status.'.OrderStatus::SHIPPED->value.'.total_value'), 0.001);

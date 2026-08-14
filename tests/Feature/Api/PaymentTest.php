@@ -73,7 +73,7 @@ class PaymentTest extends TestCase
 
     public function test_buyer_submits_payment_with_proof_file(): void
     {
-        Storage::fake('public');
+        Storage::fake('documents');
         [$buyer, , $invoice] = $this->unpaidInvoice();
 
         $response = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
@@ -86,12 +86,11 @@ class PaymentTest extends TestCase
             ->assertJsonPath('data.status_label', 'Menunggu Verifikasi')
             ->assertJsonPath('data.user_id', $buyer->id);
 
-        $proofUrl = $response->json('data.proof_file_url');
-        $this->assertNotNull($proofUrl);
-        $this->assertStringContainsString('/storage/payments/proofs/', $proofUrl);
+        $storedPath = $response->json('data.proof_file_url');
+        $this->assertNotNull($storedPath);
+        $this->assertStringStartsWith('payments/proofs/', $storedPath);
 
-        $storedPath = 'payments/proofs/'.basename(parse_url($proofUrl, PHP_URL_PATH));
-        Storage::disk('public')->assertExists($storedPath);
+        Storage::disk('documents')->assertExists($storedPath);
 
         $this->assertDatabaseHas('payments', [
             'invoice_id' => $invoice->id,
@@ -99,6 +98,101 @@ class PaymentTest extends TestCase
             'amount' => 222000.00,
             'status' => PaymentStatus::PENDING_VERIFICATION->value,
         ]);
+    }
+
+    public function test_payment_proof_is_not_exposed_on_public_disk(): void
+    {
+        Storage::fake('documents');
+        [$buyer, , $invoice] = $this->unpaidInvoice();
+
+        $response = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
+        $response->assertCreated();
+
+        $storedPath = $response->json('data.proof_file_url');
+
+        Storage::disk('documents')->assertExists($storedPath);
+        Storage::disk('public')->assertMissing($storedPath);
+    }
+
+    public function test_owner_can_download_payment_proof(): void
+    {
+        Storage::fake('documents');
+        [$buyer, , $invoice] = $this->unpaidInvoice();
+
+        $submission = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
+        $paymentId = $submission->json('data.id');
+        $storedPath = $submission->json('data.proof_file_url');
+
+        $this->actingAs($buyer);
+
+        $response = $this->get("/api/v1/payments/{$paymentId}/proof");
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+
+        $this->assertSame(
+            Storage::disk('documents')->get($storedPath),
+            $response->streamedContent()
+        );
+    }
+
+    public function test_superadmin_can_download_any_payment_proof(): void
+    {
+        Storage::fake('documents');
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $submission = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
+        $paymentId = $submission->json('data.id');
+
+        $this->actingAs($superadmin);
+
+        $this->get("/api/v1/payments/{$paymentId}/proof")->assertOk();
+    }
+
+    public function test_other_buyer_cannot_download_payment_proof(): void
+    {
+        Storage::fake('documents');
+        [$buyer, , $invoice] = $this->unpaidInvoice();
+
+        $submission = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
+        $paymentId = $submission->json('data.id');
+
+        $otherBuyer = User::factory()->buyerB2b()->create();
+        $this->actingAs($otherBuyer);
+
+        $this->getJson("/api/v1/payments/{$paymentId}/proof")->assertForbidden();
+    }
+
+    public function test_payment_proof_download_requires_authentication(): void
+    {
+        Storage::fake('documents');
+        [$buyer, , $invoice] = $this->unpaidInvoice();
+
+        $submission = $this->postJson("/api/v1/invoices/{$invoice->id}/payments", $this->submitPaymentPayload());
+        $paymentId = $submission->json('data.id');
+
+        $this->app['auth']->forgetGuards();
+
+        $this->getJson("/api/v1/payments/{$paymentId}/proof")->assertUnauthorized();
+    }
+
+    public function test_payment_proof_download_returns_404_when_file_missing(): void
+    {
+        Storage::fake('documents');
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $payment = Payment::factory()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 50000.00,
+            'proof_file_url' => 'payments/proofs/missing-proof.jpg',
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $this->getJson("/api/v1/payments/{$payment->id}/proof")
+            ->assertNotFound()
+            ->assertJsonPath('success', false);
     }
 
     public function test_payment_validation_rejects_invalid_inputs(): void
@@ -249,6 +343,130 @@ class PaymentTest extends TestCase
         $invoice->refresh();
         $this->assertEquals(InvoiceStatus::PAID, $invoice->status);
         $this->assertNotNull($invoice->paid_at);
+    }
+
+    public function test_verifying_payment_over_invoice_total_is_rejected(): void
+    {
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $payment = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 222001.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $response = $this->patchJson("/api/v1/payments/{$payment->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('errors.amount.0', 'Total pembayaran terverifikasi Rp222001.00 melebihi tagihan Rp222000.00.');
+
+        // The payment stays pending and the invoice is untouched.
+        $payment->refresh();
+        $invoice->refresh();
+
+        $this->assertEquals(PaymentStatus::PENDING_VERIFICATION, $payment->status);
+        $this->assertNull($payment->verified_by);
+        $this->assertEquals(InvoiceStatus::UNPAID, $invoice->status);
+    }
+
+    public function test_verifying_partial_then_overpayment_is_rejected(): void
+    {
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $first = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 100000.00,
+        ]);
+        $overpay = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 122001.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $this->patchJson("/api/v1/payments/{$first->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ])->assertOk();
+
+        $invoice->refresh();
+        $this->assertEquals(InvoiceStatus::PARTIALLY_PAID, $invoice->status);
+
+        // 100000 + 122001 > 222000 -> overpayment must be rejected.
+        $this->patchJson("/api/v1/payments/{$overpay->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ])->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $overpay->refresh();
+        $this->assertEquals(PaymentStatus::PENDING_VERIFICATION, $overpay->status);
+
+        $invoice->refresh();
+        $this->assertEquals(InvoiceStatus::PARTIALLY_PAID, $invoice->status);
+    }
+
+    public function test_verifying_partial_then_exact_balance_is_accepted(): void
+    {
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $first = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 100000.00,
+        ]);
+        $settle = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 122000.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $this->patchJson("/api/v1/payments/{$first->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ])->assertOk();
+
+        $this->patchJson("/api/v1/payments/{$settle->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ])->assertOk();
+
+        $settle->refresh();
+        $invoice->refresh();
+
+        $this->assertEquals(PaymentStatus::VERIFIED, $settle->status);
+        $this->assertEquals(InvoiceStatus::PAID, $invoice->status);
+        $this->assertNotNull($invoice->paid_at);
+    }
+
+    public function test_rejecting_an_overpaying_payment_is_still_allowed(): void
+    {
+        [$buyer, $superadmin, $invoice] = $this->unpaidInvoice();
+
+        $payment = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 222001.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $this->patchJson("/api/v1/payments/{$payment->id}/verify", [
+            'status' => PaymentStatus::REJECTED->value,
+            'rejection_reason' => 'Jumlah melebihi tagihan.',
+        ])->assertOk();
+
+        $payment->refresh();
+        $this->assertEquals(PaymentStatus::REJECTED, $payment->status);
+
+        $invoice->refresh();
+        $this->assertEquals(InvoiceStatus::UNPAID, $invoice->status);
     }
 
     public function test_superadmin_rejects_payment_with_reason(): void

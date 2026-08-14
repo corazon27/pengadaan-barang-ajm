@@ -60,7 +60,7 @@
             @forelse ($order->items as $index => $item)
                 <tr>
                     <td class="col-no">{{ $index + 1 }}</td>
-                    <td>{{ $item->product?->title }}</td>
+                    <td>{{ $item->product_title_snapshot ?: $item->product?->title }}</td>
                     <td class="col-qty">{{ $item->quantity }}</td>
                     <td class="col-price">{{ $money($item->unit_price) }}</td>
                     <td class="col-total">{{ $money($item->subtotal) }}</td>

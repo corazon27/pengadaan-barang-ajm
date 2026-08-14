@@ -269,3 +269,21 @@ All 8 constraints verified present in `information_schema.TABLE_CONSTRAINTS` on 
 ---
 
 *Next milestone (per plan): Controllers, Form Requests, and API routes — all of which must respect the mass-assignment and server-side-computation conventions above.*
+
+---
+
+## 5. Phase B Addendum — Foundation Hardening & Reliability (2026-08-13)
+
+Phase B resolved the approved P2/P3 findings from the Phase A audit. Summary of schema-adjacent deltas that extend the state described above; see `docs/PHASE_B_REMEDIATION_REPORT.md` for full evidence.
+
+| Area | Change |
+|---|---|
+| `audit_logs` | `entity_type` / `entity_id` now nullable (migration `2026_08_13_091233_make_audit_log_entity_columns_nullable.php`) for system/identity audit events; added `created_at`, `(entity_type, action, created_at)`, `(action, created_at)` indexes (migration `2026_08_13_091945_add_performance_indexes_to_audit_logs.php`) |
+| `products` | `description` is now nullable at the DB level (Option B; migration `2026_08_13_110000_make_product_description_nullable.php`). `datasheet_url` was already `string(500)` — confirmed, no change |
+| `orders` / `bast_documents` / `invoices` | Business numbers (`ORD-`, `BAST-`, `INV-`, `RFQ-`) now generated through `App\Services\UniqueIdentifier` (retry loop against the unique column) |
+| Migration rollback | `2026_08_15_add_unique_index_on_orders_rfq_id::down()` drops the backing FK before the unique index; `2026_08_14_add_order_workflow_columns::down()` widens the status enum, remaps newer statuses to legacy values, then narrows |
+| Seeders / factories | `UserSeeder` fail-closed in production (`SEED_DEMO_USERS` + `SEED_ADMIN_PASSWORD` / `SEED_BUYER_B2B_PASSWORD` / `SEED_BUYER_B2G_PASSWORD`); `PaymentFactory::verified()` sets `verified_by`; `ProductFactory` uses unique slugs |
+| Application | Native login rate limiter (`AppServiceProvider::boot()`), pagination clamp 1..100 via `Controller::perPage()`, grouped `%term%` product search |
+
+New/extended tests: `tests/Feature/UserSeederTest.php`, `tests/Feature/AuditLogTest.php`, plus additions to `tests/Feature/Api/{AuthTest,ProductTest,Module8Test}.php`.
+

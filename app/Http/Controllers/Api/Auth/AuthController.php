@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AuditLogger;
 use App\Traits\ApiResponser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,9 +20,14 @@ class AuthController extends Controller
 {
     use ApiResponser;
 
+    public function __construct(private readonly AuditLogger $auditLogger) {}
+
     public function login(LoginRequest $request): JsonResponse
     {
         if (! Auth::attempt($request->only('email', 'password'))) {
+            $user = User::where('email', $request->input('email'))->first();
+            $this->auditLogger->log($user, AuditAction::LOGIN_FAILED, $user);
+
             return $this->errorResponse('Kredensial tidak valid.', null, 401);
         }
 
@@ -28,6 +35,8 @@ class AuthController extends Controller
         $user = $request->user();
 
         $token = $user->createToken('auth-token', ['role:'.$user->role->value]);
+
+        $this->auditLogger->log($user, AuditAction::USER_LOGIN, $user);
 
         return $this->successResponse([
             'user' => new UserResource($user),
@@ -43,6 +52,9 @@ class AuthController extends Controller
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
         }
+
+        $user = $request->user();
+        $this->auditLogger->log($user, AuditAction::USER_LOGOUT, $user);
 
         return $this->successResponse(null, 'Logout berhasil.');
     }

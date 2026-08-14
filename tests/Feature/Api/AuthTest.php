@@ -7,6 +7,7 @@ namespace Tests\Feature\Api;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -188,5 +189,82 @@ class AuthTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Tidak terautentikasi.');
+    }
+
+    public function test_login_is_throttled_after_repeated_failures(): void
+    {
+        $email = 'throttle@corporation.com';
+        User::factory()->create(['email' => $email]);
+
+        $payload = [
+            'email' => $email,
+            'password' => 'wrong-password',
+        ];
+
+        // First five attempts are allowed (per-minute limit = 5).
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/login', $payload)->assertStatus(401);
+        }
+
+        // The sixth attempt is throttled.
+        $this->postJson('/api/v1/auth/login', $payload)
+            ->assertStatus(429)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('errors.throttle.0', 'Terlalu banyak permintaan. Silakan coba lagi setelah batas waktu.');
+    }
+
+    public function test_login_throttle_is_per_email_address(): void
+    {
+        $throttledEmail = 'throttled@corporation.com';
+        $otherEmail = 'other@corporation.com';
+        User::factory()->create(['email' => $throttledEmail]);
+        User::factory()->create(['email' => $otherEmail]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/login', [
+                'email' => $throttledEmail,
+                'password' => 'wrong-password',
+            ])->assertStatus(401);
+        }
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $throttledEmail,
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+
+        // A different account is unaffected by the throttled one.
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $otherEmail,
+            'password' => 'wrong-password',
+        ])->assertStatus(401);
+    }
+
+    public function test_valid_login_succeeds_after_throttle_window_reset(): void
+    {
+        $email = 'reset@corporation.com';
+        User::factory()->create(['email' => $email]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/login', [
+                'email' => $email,
+                'password' => 'wrong-password',
+            ])->assertStatus(401);
+        }
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $email,
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+
+        // Simulate the rate-limit window elapsing, then valid credentials work.
+        RateLimiter::clear(md5('login'.$email.'|127.0.0.1'));
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => $email,
+            'password' => 'password123',
+        ])->assertOk()
+            ->assertJsonPath('data.user.email', $email)
+            ->assertJsonPath('data.token_type', 'Bearer');
     }
 }

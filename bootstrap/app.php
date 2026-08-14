@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('invoices:check-overdue')->daily();
+        $schedule->command('invoices:check-overdue')->daily()->withoutOverlapping();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         //
@@ -51,5 +52,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 'data' => null,
                 'errors' => null,
             ], 401);
+        });
+
+        $exceptions->renderable(function (TooManyRequestsHttpException $e, Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
+                'data' => null,
+                'errors' => ['throttle' => ['Terlalu banyak permintaan. Silakan coba lagi setelah batas waktu.']],
+            ], 429);
         });
     })->create();

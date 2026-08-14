@@ -16,7 +16,7 @@ class ProductFactory extends Factory
         return [
             'sku' => fake()->unique()->numerify('PROD-########'),
             'title' => fake()->sentence(),
-            'slug' => fake()->slug(),
+            'slug' => fake()->unique()->slug(),
             'description' => fake()->paragraph(),
             'base_price' => fake()->randomFloat(2, 10, 500),
             'margin_percentage' => fake()->randomFloat(0, 0, 50),

@@ -38,14 +38,28 @@ class Order extends Model
     protected static function booted(): void
     {
         static::saving(function (Order $order) {
-            $order->total_amount = (float) $order->items()->sum('subtotal');
+            $order->total_amount = self::sumItemSubtotals($order);
         });
     }
 
     public function recalculateTotal(): void
     {
-        $this->total_amount = (float) $this->items()->sum('subtotal');
+        $this->total_amount = self::sumItemSubtotals($this);
         $this->saveQuietly();
+    }
+
+    /**
+     * Sum the item subtotals using decimal math so the order total never drifts
+     * due to float rounding (INT-5).
+     *
+     * @return string amount formatted to 2 decimal places
+     */
+    private static function sumItemSubtotals(Order $order): string
+    {
+        return $order->items()->get()->reduce(
+            fn (string $carry, OrderItem $item) => bcadd($carry, (string) $item->subtotal, 2),
+            '0.00'
+        );
     }
 
     public function user(): BelongsTo

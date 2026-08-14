@@ -12,6 +12,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\CreateOrderFromRfqRequest;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
 use App\Http\Resources\Order\OrderResource;
+use App\Models\BastDocument;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Rfq;
@@ -19,11 +20,11 @@ use App\Models\User;
 use App\Notifications\OrderShippedNotification;
 use App\Services\AuditLogger;
 use App\Services\PdfService;
+use App\Services\UniqueIdentifier;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
@@ -51,7 +52,7 @@ class OrderController extends Controller
             $query->where('status', $status);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $orders = $query->latest()->paginate($perPage);
 
         return response()->json([
@@ -115,7 +116,7 @@ class OrderController extends Controller
                 }
 
                 $order = Order::create([
-                    'order_number' => 'ORD-'.strtoupper(Str::random(10)),
+                    'order_number' => UniqueIdentifier::generate('ORD', Order::class, 'order_number'),
                     'user_id' => $rfq->user_id,
                     'rfq_id' => $rfq->id,
                     'status' => OrderStatus::PENDING_PAYMENT,
@@ -127,6 +128,12 @@ class OrderController extends Controller
                         'order_id' => $order->id,
                         'product_id' => $item->product_id,
                         'quantity' => $item->quantity,
+                        // Freeze the commercial identity at order time (INT-7) so
+                        // later catalog changes never alter this order or invoice.
+                        'product_sku_snapshot' => $item->product->sku,
+                        'product_title_snapshot' => $item->product->title,
+                        'ppn_rate_snapshot' => $item->product->tax_rate_percentage,
+                        'pph_rate_snapshot' => $item->product->pph_rate_percentage,
                     ]);
 
                     // unit_price is not mass-assignable; set directly. Fallback to
@@ -206,7 +213,7 @@ class OrderController extends Controller
             // shipped, ready for signing once the goods arrive
             if ($newStatus === OrderStatus::SHIPPED && $order->bastDocument()->doesntExist()) {
                 $order->bastDocument()->create([
-                    'bast_number' => 'BAST-'.strtoupper(Str::random(10)),
+                    'bast_number' => UniqueIdentifier::generate('BAST', BastDocument::class, 'bast_number'),
                 ]);
             }
 

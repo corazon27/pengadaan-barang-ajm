@@ -50,6 +50,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn () => [
             'status' => PaymentStatus::VERIFIED,
+            'verified_by' => User::factory(),
             'verified_at' => now(),
         ]);
     }

@@ -35,7 +35,7 @@ CREATE TABLE products (
   sku VARCHAR(50) UNIQUE NOT NULL,
   title VARCHAR(255) NOT NULL,
   slug VARCHAR(255) UNIQUE NOT NULL,
-  description TEXT NOT NULL,
+  description TEXT NULL,
   base_price NUMERIC(15, 2) NOT NULL CHECK (base_price >= 0),
   margin_percentage NUMERIC(5, 2) DEFAULT 0.00 CHECK (margin_percentage >= 0),
   tax_rate_percentage NUMERIC(5, 2) DEFAULT 11.00 CHECK (tax_rate_percentage >= 0),
@@ -135,8 +135,8 @@ CREATE TABLE audit_logs (
   id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
   user_id CHAR(36) REFERENCES users(id) ON DELETE SET NULL,
   action VARCHAR(100) NOT NULL,
-  entity_type VARCHAR(50) NOT NULL,
-  entity_id CHAR(36) NOT NULL,
+  entity_type VARCHAR(50),        -- nullable: system/identity events (login, logout, throttled)
+  entity_id CHAR(36),             -- nullable: system/identity events
   previous_state JSON,
   new_state JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -157,6 +157,9 @@ CREATE INDEX idx_invoices_order_id ON invoices(order_id);
 CREATE INDEX idx_invoices_due_date ON invoices(due_date);
 CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_entity_action_created ON audit_logs(entity_type, action, created_at);
+CREATE INDEX idx_audit_logs_action_created ON audit_logs(action, created_at);
 
 -- =============================================================================
 -- 3. UPDATED_AT HANDLING

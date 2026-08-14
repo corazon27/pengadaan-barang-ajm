@@ -17,6 +17,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -79,6 +80,60 @@ class OrderTest extends TestCase
             'unit_price' => 95000.00,
             'subtotal' => 285000.00,
         ]);
+    }
+
+    public function test_order_item_freezes_product_commercial_snapshot_at_order_time(): void
+    {
+        $buyer = User::factory()->buyerB2b()->create();
+        $product = Product::factory()->create([
+            'sku' => 'SKU-FROZEN-001',
+            'title' => 'Produk Asli',
+            'base_price' => 100000.00,
+            'tax_rate_percentage' => 11.00,
+            'pph_rate_percentage' => 2.00,
+        ]);
+        $rfq = Rfq::factory()->create(['user_id' => $buyer->id, 'status' => RfqStatus::APPROVED]);
+        RfqItem::factory()->create([
+            'rfq_id' => $rfq->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'negotiated_price' => 95000.00,
+        ]);
+
+        $this->actingAs($buyer);
+
+        $response = $this->postJson('/api/v1/orders', [
+            'rfq_id' => $rfq->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.total_amount', '190000.00')
+            ->assertJsonPath('data.items.0.product_sku_snapshot', 'SKU-FROZEN-001')
+            ->assertJsonPath('data.items.0.product_title_snapshot', 'Produk Asli')
+            ->assertJsonPath('data.items.0.ppn_rate_snapshot', '11.00')
+            ->assertJsonPath('data.items.0.pph_rate_snapshot', '2.00');
+
+        // Modifying the catalog afterwards must not retroactively change the order.
+        $product->update([
+            'sku' => 'SKU-CHANGED-999',
+            'title' => 'Produk Telah Diubah',
+            'tax_rate_percentage' => 12.00,
+        ]);
+
+        $order = $response->json('data.id');
+
+        $this->assertDatabaseHas('order_items', [
+            'order_id' => $order,
+            'product_sku_snapshot' => 'SKU-FROZEN-001',
+            'product_title_snapshot' => 'Produk Asli',
+            'ppn_rate_snapshot' => 11.00,
+            'pph_rate_snapshot' => 2.00,
+        ]);
+
+        $this->getJson("/api/v1/orders/{$order}")
+            ->assertOk()
+            ->assertJsonPath('data.items.0.product_sku_snapshot', 'SKU-FROZEN-001')
+            ->assertJsonPath('data.items.0.product_title_snapshot', 'Produk Asli');
     }
 
     public function test_buyer_cannot_convert_non_approved_rfq(): void
@@ -339,18 +394,13 @@ class OrderTest extends TestCase
 
     public function test_orders_table_has_unique_index_on_rfq_id(): void
     {
-        // Skip on SQLite since it doesn't support getDoctrineSchemaManager
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('SQLite does not support schema introspection via Doctrine');
-        }
-
-        $indexes = collect(DB::getSchemaBuilder()->getConnection()->getDoctrineSchemaManager()
-            ->listTableDetails('orders')
-            ->getIndexes()
-        )->pluck('getName');
+        // The create migration chains ->unique() onto a constrained foreign
+        // column, which Laravel never emits as an index on MySQL/PostgreSQL.
+        // The invariant is restored by a dedicated migration; this test guards it.
+        $indexes = collect(Schema::getIndexes('orders'));
 
         $this->assertTrue(
-            $indexes->contains(fn ($name) => str_contains($name, 'rfq_id') && str_contains($name, 'unique')),
+            $indexes->contains(fn (array $index) => $index['unique'] && in_array('rfq_id', $index['columns'], true)),
             'orders table must have a unique index on rfq_id column'
         );
     }

@@ -41,7 +41,7 @@ class AuditLogController extends Controller
             $query->where('action', $action);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $logs = $query->latest()->paginate($perPage);
 
         return response()->json([

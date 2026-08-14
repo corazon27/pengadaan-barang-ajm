@@ -57,6 +57,22 @@ return new class extends Migration
     {
         if (DB::getDriverName() === 'mysql') {
             $oldValues = ['DRAFT', 'WAITING_PO', 'PROCESSING', 'SHIPPED', 'BAST_SIGNED', 'INVOICED', 'PAID', 'CANCELLED'];
+
+            // The column currently only accepts the post-refactor values, so
+            // widen it to the union first, map newer statuses back onto the
+            // legacy enum, then narrow (mirror of the legacy-status remap in
+            // up()); otherwise strict mode rejects either the UPDATE or the
+            // final ALTER.
+            $union = array_values(array_unique(array_merge($oldValues, array_column(OrderStatus::cases(), 'value'))));
+
+            DB::statement(
+                'ALTER TABLE orders MODIFY status ENUM('.implode(',', array_map(static fn ($v) => "'{$v}'", $union)).') NOT NULL DEFAULT \'DRAFT\''
+            );
+
+            DB::table('orders')->where('status', 'PENDING_PAYMENT')->update(['status' => 'WAITING_PO']);
+            DB::table('orders')->where('status', 'DELIVERED')->update(['status' => 'SHIPPED']);
+            DB::table('orders')->where('status', 'COMPLETED')->update(['status' => 'PAID']);
+
             DB::statement(
                 'ALTER TABLE orders MODIFY status ENUM('.implode(',', array_map(static fn ($v) => "'{$v}'", $oldValues)).') NOT NULL DEFAULT \'DRAFT\''
             );

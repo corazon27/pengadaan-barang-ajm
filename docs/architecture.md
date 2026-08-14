@@ -138,3 +138,18 @@ GEMINI-PENGADAAN/
 └── storage/
     └── app/
         └── private/               # Terproteksi: uploads/po/, uploads/bast/, uploads/faktur/
+
+---
+
+## 6. Phase B Delta — Current Implementation State (2026-08-13)
+
+The design draft above predates implementation. Phase B hardened the foundation; the following current-state notes supersede the draft where they differ:
+
+- **Login rate limiting:** native `RateLimiter::for('login')` (5/min per email+IP) registered in `AppServiceProvider::boot()` — returns the API 429 envelope and logs `LOGIN_THROTTLED`. (Do **not** register rate limiters inside `bootstrap/app.php` `withMiddleware(...)` — the closure runs before the cache provider and fatals.)
+- **Audit trail:** `App\Services\AuditLogger` (not `App\Listeners\LogActivity.php` as in the draft) writes `audit_logs` rows with `previous_state`/`new_state` JSON; events now include auth (`USER_LOGIN`, `USER_LOGOUT`, `LOGIN_FAILED`, `LOGIN_THROTTLED`), profile updates, and product CRUD. `audit_logs.entity_type`/`entity_id` are nullable for system/identity events.
+- **Business identifiers:** `ORD-`, `BAST-`, `INV-`, `RFQ-` numbers are generated through `App\Services\UniqueIdentifier` (retry loop against the unique column) instead of raw `Str::random`.
+- **Pagination:** listing endpoints clamp `per_page` to 1..100 (default 15) via `Controller::perPage()`.
+- **Seeder safety:** `UserSeeder` fails closed in production (`SEED_DEMO_USERS` + named password env vars required); no `password123` in prod.
+- **Scheduler:** overdue-invoice check runs daily with `->withoutOverlapping()` and row locks.
+- **Schema deltas:** `products.description` nullable; `audit_logs` gained `(entity_type, action, created_at)` / `(action, created_at)` / `(created_at)` indexes; migration `down()` methods for the rfq_id unique index and the order-workflow enum change are fixed and rollback-verified with data on MySQL 8.4.3.
+

@@ -10,6 +10,7 @@ use App\Models\BastDocument;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Rfq;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -29,16 +30,21 @@ class AuditLogger
         BastDocument::class => ['status', 'signed_at', 'signed_date', 'notes'],
         Invoice::class => ['status', 'amount_due', 'grand_total', 'paid_at'],
         Payment::class => ['status', 'amount', 'verified_at', 'rejection_reason'],
+        User::class => ['full_name', 'email', 'company_name', 'role'],
+        Product::class => ['sku', 'title', 'base_price', 'stock', 'is_sni'],
     ];
 
     /**
      * Persist an audit log entry for a critical state change. Failures are
      * reported and swallowed so auditing never aborts the business action.
+     *
+     * The entity is optional: authentication events (login/logout) that
+     * predate a resolved record pass no entity, and the row is still written.
      */
     public function log(
         ?User $user,
         AuditAction $action,
-        Model $entity,
+        ?Model $entity = null,
         ?array $previousState = null,
         ?array $newState = null,
     ): ?AuditLog {
@@ -47,10 +53,10 @@ class AuditLogger
                 return AuditLog::create([
                     'user_id' => $user?->id,
                     'action' => $action->value,
-                    'entity_type' => class_basename($entity),
-                    'entity_id' => $entity->getKey(),
-                    'previous_state' => $previousState ?? $this->snapshot($entity),
-                    'new_state' => $newState ?? $this->snapshot($entity),
+                    'entity_type' => $entity ? class_basename($entity) : null,
+                    'entity_id' => $entity?->getKey(),
+                    'previous_state' => $previousState ?? ($entity ? $this->snapshot($entity) : []),
+                    'new_state' => $newState ?? ($entity ? $this->snapshot($entity) : []),
                 ]);
             });
         } catch (\Throwable $e) {

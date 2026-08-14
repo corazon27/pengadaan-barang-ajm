@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\Invoice;
 use App\Enums\AuditAction;
 use App\Enums\InvoiceStatus;
 use App\Enums\UserRole;
+use App\Exceptions\InvoiceStatusTransitionException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoice\UpdateInvoicePaymentStatusRequest;
 use App\Http\Resources\Invoice\InvoiceResource;
@@ -14,6 +15,7 @@ use App\Models\Invoice;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -38,7 +40,7 @@ class InvoiceController extends Controller
             $query->where('status', $paymentStatus);
         }
 
-        $perPage = $request->input('per_page', 15);
+        $perPage = $this->perPage($request);
         $invoices = $query->latest('created_at')->paginate($perPage);
 
         return response()->json([
@@ -76,10 +78,33 @@ class InvoiceController extends Controller
         $paymentStatus = InvoiceStatus::from($request->input('payment_status'));
         $previousState = $this->auditLogger->snapshot($invoice);
 
-        $invoice->update([
-            'status' => $paymentStatus,
-            'paid_at' => $paymentStatus === InvoiceStatus::PAID ? now() : null,
-        ]);
+        // Re-read under a row lock so concurrent status updates serialize
+        // against the latest committed state (INT-6).
+        try {
+            $invoice = DB::transaction(function () use ($invoice, $paymentStatus) {
+                $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+
+                if (! $locked->canTransitionTo($paymentStatus)) {
+                    throw new InvoiceStatusTransitionException(
+                        "Cannot transition invoice from {$locked->status->value} to {$paymentStatus->value}."
+                    );
+                }
+
+                $locked->update([
+                    'status' => $paymentStatus,
+                    'paid_at' => $paymentStatus === InvoiceStatus::PAID ? now() : null,
+                ]);
+
+                return $locked;
+            });
+        } catch (InvoiceStatusTransitionException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transisi status pembayaran tidak valid.',
+                'data' => null,
+                'errors' => ['payment_status' => [$e->getMessage()]],
+            ], 422);
+        }
 
         $this->auditLogger->log($request->user(), AuditAction::INVOICE_STATUS_UPDATED, $invoice, $previousState);
 

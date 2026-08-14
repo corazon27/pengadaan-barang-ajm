@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -116,6 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/invoices/{invoice}/payments', [PaymentController::class, 'store']);
     Route::get('/payments', [PaymentController::class, 'index']);
+    Route::get('/payments/{payment}/proof', [PaymentController::class, 'downloadProof']);
     Route::patch('/payments/{payment}/verify', [PaymentController::class, 'verify']);
 });
 
