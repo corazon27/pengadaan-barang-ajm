@@ -77,7 +77,7 @@ All citations were checked against official sources on or before **13-Aug-2026**
 | Platform role | Supplier-side support portal; internal mirror of procurement documents | Cluster A decision (approved) |
 | PSE classification | **PSE lingkup privat** (Penyelenggara Sistem Elektronik privat) | PP 71/2019 Ps 2(2); Cluster C |
 | PMSE classification | Pedagang/Penyedia (supplier) via Sistem Elektronik — merchant/seller; NOT "Retail Online" (conditional; subject to Permendag 31/2023 definitions) | Cluster C |
-| Tax status | PKP (Pengusaha Kena Pajak) on sell-side; DJP-registered taxpayer | Cluster D |
+| Tax status | PKP (Pengusaha Kena Pajak) on sell-side — **UNVERIFIED/assumed** (required for e-Faktur issuance; subject to AJM DJP registration evidence) | Cluster D |
 | Data subject types | Supplier contacts, customer business contacts, employees | Cluster E |
 | Data processed | Company + personal data (contacts, KTP/NPWP/NIB of PICs, financial) | Cluster E |
 
@@ -99,22 +99,22 @@ Each classification triggers a distinct regulatory stack:
 | 3 | PP 71/2019 (PSTE) | GoI | 2019 | In force | C, E | jdih.komdigi.go.id |
 | 4 | PP 80/2019 (PMSE) | GoI | 2019 | In force | C | jdih.setkab.go.id |
 | 5 | Perpres 16/2018 jo 12/2021 jo 46/2025 (Pengadaan Barang/Jasa Pemerintah) | Presiden | 2018 / 2021 / 2025 | In force | A, B | jdih.lkpp.go.id |
-| 6 | Kepka LKPP 21/2018 (INAPROC) | LKPP | 2018 | In force | B | jdih.lkpp.go.id |
+| 6 | Perpres 17/2023 (Percepatan Transformasi Digital Pengadaan — basis hukum INAPROC) | Presiden | 2023 | In force | B | jdih.lkpp.go.id |
 | 7 | Kepka LKPP 122/2022 (e-Purchasing) | LKPP | 2022 | In force | B | jdih.lkpp.go.id |
 | 8 | Kepka LKPP 177/2024 (e-Katalog adjustments) | LKPP | 2024 | In force | B | jdih.lkpp.go.id |
 | 9 | Catalog V6 Terms & Conditions | LKPP | current | In force | B | Catalog V6 official T&C |
 | 10 | Permenkominfo 5/2020 jo 10/2021 (PSE registration) | Kominfo/Komdigi | 2020 / 2021 | In force | C | jdih.komdigi.go.id |
 | 11 | Permenkominfo 11/2022 (Tata Kelola Penyelenggaraan Sertifikasi Elektronik) | Kominfo/Komdigi | 5-Oct-2022 | In force | C | jdih.komdigi.go.id (`view/id/833`) |
 | 12 | PMK 11/2025 jo PMK 53/2025 (PPN rate & DPP nilai lain) | Menkeu | 2025 | In force | D | jdih.kemenkeu.go.id |
-| 13 | PMK 131/2024 (E-Faktur / sertifikat elektronik perpajakan) | Menkeu | 2024 | In force | D | jdih.kemenkeu.go.id |
-| 14 | PMK 81/2024 (tata cara E-Faktur) | Menkeu | 2024 | In force | D | jdih.kemenkeu.go.id |
-| 15 | PER-1/PJ/2025 (NPWP/NIK & identitas) | DJP | 2025 | In force | D | jdih.kemenkeu.go.id |
-| 16 | PER-11/PJ/2025 (faktur pajak, Lampiran D code hierarchy) | DJP | 2025 | In force | D | jdih.kemenkeu.go.id |
+| 13 | PMK 131/2024 (PPN treatment: Impor/Penyerahan BKP & JKP, Pemanfaatan BKP Tidak Berwujud & JKP dari Luar Daerah Pabean) | Menkeu | 2024 | In force | D | jdih.kemenkeu.go.id |
+| 14 | PMK 81/2024 (Ketentuan Perpajakan dalam Rangka Pelaksanaan SIAP / Coretax) jo PMK 54/2025 (Perubahan Ketiga) jo PMK 1/2026 (Perubahan Keempat) | Menkeu | 2024 / 2025 / 2026 | In force (as amended) | D | jdih.kemenkeu.go.id |
+| 15 | PER-1/PJ/2025 (Petunjuk Teknis Pembuatan Faktur Pajak dalam pelaksanaan PMK 131/2024) | DJP | 2025 | In force | D | jdih.kemenkeu.go.id |
+| 16 | PER-11/PJ/2025 (Pelaporan PPh, PPN, PPnBM & Bea Meterai dalam SIAP; Lampiran D = kode & nomor seri faktur pajak) | DJP | 2025 | In force | D | jdih.kemenkeu.go.id |
 | 17 | PMK 59/2022 (pemungutan PPN instansi pemerintah) | Menkeu | 2022 | In force | D | jdih.kemenkeu.go.id |
 | 18 | Permendag 31/2023 (perizinan berusaha PMSE) | Mendag | 2023 | In force | C | jdih.kemendag.go.id |
 | 19 | Peraturan BSSN (BSrE Ops) | BSSN | current | In force | C | jdih.bssn.go.id |
 
-**Cross-cluster rule count:** 33 unique Rule IDs (see §21). None duplicated.
+**Cross-cluster rule count:** 98 discrete Rule IDs (see Appendix B). None duplicated.
 
 ---
 
@@ -147,7 +147,8 @@ AJM is a **supplier** participating in government procurement. The platform is a
 
 ### 6.1 Regulatory frame
 - **Perpres 16/2018 jo 12/2021 jo 46/2025** — the umbrella government procurement regulation.
-- **Kepka LKPP 21/2018** — INAPROC (Integrated National Procurement).
+- **Perpres 17/2023** — INAPROC (Integrated National Procurement; Percepatan Transformasi Digital Pengadaan, dikembangkan LKPP + PT Telkom).
+- Note: "Kepka LKPP 21/2018" is the **Jadwal Retensi Arsip LKPP** (archival-retention schedule), NOT INAPROC; revoked by **Peraturan LKPP 6/2023** (pencabutan peraturan di bidang kearsipan).
 - **Kepka LKPP 122/2022** — e-Purchasing (e-purchasing default when goods are in e-Catalog).
 - **Kepka LKPP 177/2024** — e-Katalog adjustments.
 - **Catalog V6 T&C** — platform terms for e-catalog participants.
@@ -158,7 +159,7 @@ AJM is a **supplier** participating in government procurement. The platform is a
 |---|---|---|---|---|---|---|
 | LKPP-01 | E-purchasing is the **default** channel when goods are cataloged, subject to statutory exceptions and PPK assessment | Kepka LKPP 122/2022 | CONDITIONALLY REQUIRED | PARTIAL | UNVERIFIED | Platform must warn not auto-select |
 | LKPP-02 | Categorical gap matrix over % coverage — track which product categories are cataloged vs not | Kepka 122/2022, 177/2024 | REQUIRED | MISSING | UNVERIFIED | Module 9 |
-| LKPP-03 | INAPROC channel awareness (procurement method per KPB) | Kepka 21/2018 | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | |
+| LKPP-03 | INAPROC channel awareness (procurement method per KPB) | Perpres 17/2023 | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | INAPROC basis = Perpres 17/2023, not Kepka 21/2018 |
 | LKPP-04 | Catalog T&C awareness for participating suppliers | Catalog V6 T&C | REQUIRED | MISSING | UNVERIFIED | ToS + checklist |
 | LKPP-05 | E-catalog listing status tracking for own products | Catalog V6 T&C | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | |
 | LKPP-06 | Do not present non-catalog offers as e-catalog offers | Kepka 122/2022 | REQUIRED | MISSING | UNVERIFIED | Integrity control |
@@ -239,7 +240,7 @@ AJM is a **PSE lingkup privat** (PP 71/2019 Ps 2(2)) conducting **electronic tra
 | PSE-REG-002 | PSE privat registration interface (PMSE/electronic services) | Permenkominfo 5/2020 jo 10/2021 | Ps 4–6 | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | CONFIRMED |
 | PSE-REG-003 | Registration data accuracy & maintenance | Permenkominfo 5/2020 jo 10/2021 | Ps 7 | REQUIRED | MISSING | UNVERIFIED | CONFIRMED |
 | PSE-GOV-001 | System reliability & security obligations | PP 71/2019 | Ps 11, 12, 13, 14 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
-| PSE-GOV-002 | Continuity & disaster recovery | PP 71/2019 | Ps 19, 21(1) | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
+| PSE-GOV-002 | Continuity & disaster recovery | PP 71/2019 | Ps 19 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED (Ps 19 = tata kelola & keberlangsungan; Ps 21(1) does NOT mandate DR — DR is engineering best practice) |
 | PSE-GOV-003 | User assistance/information | PP 71/2019 | Ps 13, 14 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
 | PSE-DATA-001 | Data protection in PSE (PDP principles) | UU 27/2022 | Ps 16 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
 | PSE-DATA-002 | Data localization — overseas transfer permitted with safeguards | PP 71/2019 | Ps 21(1) | CONDITIONALLY REQUIRED | UNVERIFIED | UNVERIFIED | CONFIRMED (not a blanket Indonesia-only rule) |
@@ -309,9 +310,9 @@ AJM sells via electronic systems (PMSE). Under Permendag 31/2023, AJM is classif
 |---|---|---|---|---|---|---|
 | TAX-PPN-01 | PPN rate & DPP calculation | PMK 11/2025 jo PMK 53/2025 | REQUIRED | PARTIAL | UNVERIFIED | **PPN is NOT simply 12%** — DPP nilai lain 11/12; effective ~11% for standard goods |
 | TAX-PPN-02 | Faktur pajak code selection (hierarchy) | PER-11/PJ/2025 Lampiran D | REQUIRED | MISSING | UNVERIFIED | code 02 = only govt VAT collectors; code 03 = only designated collectors; **code 01 = default** |
-| TAX-PPN-03 | E-Faktur issuance & reporting | PMK 131/2024, PMK 81/2024 | REQUIRED | MISSING | UNVERIFIED | |
+| TAX-PPN-03 | E-Faktur issuance & reporting | PER-1/PJ/2025 (Petunjuk Teknis), PER-11/PJ/2025 (SIAP reporting), PMK 81/2024 (SIAP umbrella) | REQUIRED | MISSING | UNVERIFIED | PMK 131/2024 is PPN *treatment*, not E-Faktur procedure |
 | TAX-PPN-04 | B2G VAT collection (instansi pemerintah) | PMK 59/2022 | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | Applies where customer is a VAT-collecting government institution |
-| TAX-PPN-05 | NPWP/NIK validation on counterparties | PER-1/PJ/2025 | REQUIRED | MISSING | UNVERIFIED | |
+| TAX-PPN-05 | NPWP/NIK identity on counterparties | PER-11/PJ/2025 | REQUIRED | MISSING | UNVERIFIED | PER-1/PJ/2025 is faktur *pembuatan* teknis; identitas pembeli fields live in PER-11/PJ/2025 |
 | TAX-PPN-06 | No "SPT Tahunan PPN" concept | — | NOT APPLICABLE (no such filing) | N/A | N/A | Removed as an incorrect rule |
 
 ### 12.2 PPh (sell-side / buy-side)
@@ -320,7 +321,7 @@ AJM sells via electronic systems (PMSE). Under Permendag 31/2023, AJM is classif
 |---|---|---|---|---|---|---|
 | TAX-PPH-01 | PPh 23 withholding tracking (sell & buy side separation) | UU PPh; PP implementing | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | `REQUIRES PROFESSIONAL TAX REVIEW` for exact model |
 | TAX-PPH-02 | PPh 21 for employees | UU PPh | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | HR scope |
-| TAX-PPH-03 | Tax certificate/NPWP evidence for counterparties | PMK 131/2024 | REQUIRED | MISSING | UNVERIFIED | |
+| TAX-PPH-03 | Tax certificate/NPWP evidence for counterparties | UNCERTAIN — not PMK 131/2024 (that is PPN treatment) | REQUIRED | MISSING | UNVERIFIED | `REQUIRES PROFESSIONAL TAX REVIEW` |
 
 ### 12.3 Coretax
 
@@ -334,6 +335,7 @@ AJM sells via electronic systems (PMSE). Under Permendag 31/2023, AJM is classif
 - Coretax API = optional.
 - No "SPT Tahunan PPN".
 - Sell-side vs buy-side PPh separated.
+- **Citation corrections (QC pass, 14-Aug-2026):** PMK 131/2024 = PPN **treatment** (not E-Faktur); PMK 81/2024 = SIAP/Coretax umbrella (jo PMK 54/2025 Perubahan Ketiga, PMK 1/2026 Perubahan Keempat); PER-1/PJ/2025 = Petunjuk Teknis Pembuatan Faktur Pajak (not NPWP/NIK identity); PER-11/PJ/2025 = SIAP reporting incl. faktur-pajak code/NSFP (Lampiran D) — source for faktur issuance (TAX-PPN-03) and counterparty NPWP/NIK identity (TAX-PPN-05); TAX-PPH-03 basis `REQUIRES PROFESSIONAL TAX REVIEW` (PMK 131/2024 removed as incorrect citation).
 
 ### 12.5 TaxRule engine concept (Module 9 candidate)
 A deterministic `TaxRule` engine is proposed (§24) — rule-driven, versioned, no hardcoded rates. **Rates must not be hardcoded**; each rule carries validity dates and official source.
@@ -474,7 +476,8 @@ Module 7 generates PDFs (RFQ, BAST, invoice). These are internal/support documen
 | Ps 6(1) | PSE-REG-001 |
 | Ps 11, 12, 13, 14 | PSE-GOV-001, PSE-SEC-001, SEC-03, SEC-04 |
 | Ps 14(5) | INC-PSE-002 |
-| Ps 19, 21(1) | PSE-GOV-002, PSE-DATA-002, SEC-05 |
+| Ps 19 | PSE-GOV-002, SEC-05 (continuity & tata kelola keberlangsungan — NOT Ps 21(1)) |
+| Ps 21(1) | PSE-DATA-002 (overseas transfer permitted) |
 | Ps 22(1) | PSE-AUDIT-001, B2B-02, DOC-01, ROLE-06 |
 | Ps 24(3) | INC-PSE-001, SEC-02 |
 | Ps 42–43 | Sertifikat Keandalan / LSK (distinct) |
@@ -499,23 +502,26 @@ Module 7 generates PDFs (RFQ, BAST, invoice). These are internal/support documen
 |---|---|
 | Ps 4(2) | GOV-02 |
 | General | GOV-01, GOV-03, GOV-04, LKPP-*, TKDN-*, PROH-01, PROH-03 |
+| Perpres 17/2023 | LKPP-03 (INAPROC) |
 
 ### 18.7 Kepka LKPP
 | Regulation | Rule IDs |
 |---|---|
 | Kepka 122/2022 | LKPP-01, LKPP-02, LKPP-06, TKDN-01/02 |
-| Kepka 21/2018 | LKPP-03 |
 | Kepka 177/2024 | LKPP-02 |
 | Catalog V6 T&C | LKPP-04, LKPP-05 |
+| ~~Kepka 21/2018~~ (jadwal retensi arsip; revoked by Peraturan LKPP 6/2023) | — (LKPP-03 moved to Perpres 17/2023) |
 
 ### 18.8 Tax
 | Regulation | Rule IDs |
 |---|---|
-| PMK 11/2025 jo 53/2025 | TAX-PPN-01 |
-| PER-11/PJ/2025 | TAX-PPN-02 |
-| PMK 131/2024, PMK 81/2024 | TAX-PPN-03, TAX-PPH-03 |
+| PMK 11/2025 jo 53/2025 (DPP nilai lain) | TAX-PPN-01 |
+| PMK 131/2024 (PPN treatment) | TAX-PPN-01 (rate basis) |
+| PER-11/PJ/2025 | TAX-PPN-02, TAX-PPN-03, TAX-PPN-05 |
+| PER-1/PJ/2025 | TAX-PPN-03 |
+| PMK 81/2024 (SIAP umbrella) | TAX-PPN-03 |
 | PMK 59/2022 | TAX-PPN-04 |
-| PER-1/PJ/2025 | TAX-PPN-05 |
+| TAX-PPH-03 | UNCERTAIN — professional tax review (not PMK 131/2024) |
 | Coretax | TAX-CRT-01 |
 | UU PPh & implementing | TAX-PPH-01, TAX-PPH-02 |
 
@@ -604,8 +610,8 @@ System: IMP=IMPLEMENTED, PAR=PARTIAL, MIS=MISSING, NA, UNV=UNVERIFIED.
 |---|---|---|---|---|
 | Invoice & faktur pajak (E-Faktur) | 10 years (tax books; UU KUP) | Reasonable per PDP (business justification) | Contract/evidence | 10 years (tax drives); verify PDP lawfulness |
 | Payment records / bank statements | 10 years | Reasonable | Evidence | 10 years |
-| RFQ / order / PO | Business records (5–10 yr per applicable reg) | Reasonable | 5 years civil limitation (KUHPdt 30-yr caveat for some claims — `REQUIRES PROFESSIONAL LEGAL REVIEW`) | 10 years default (safe); reconcile with KUHPerdata |
-| BAST / delivery evidence | Business records | Reasonable | Evidence | 10 years default |
+| RFQ / order / PO | Business records (5–10 yr per applicable reg) | Reasonable | 5 years civil limitation (KUHPdt 30-yr caveat for some claims — `REQUIRES PROFESSIONAL LEGAL REVIEW`) | UNDEFINED — REQUIRES DOCUMENT-SPECIFIC LEGAL RULE (no blanket default) |
+| BAST / delivery evidence | Business records | Reasonable | Evidence | UNDEFINED — REQUIRES DOCUMENT-SPECIFIC LEGAL RULE |
 | PSE audit logs (Ps 22(1)) | N/A | N/A | PSE operational | Retain per PSE ops continuity; at least statutory/audit period |
 | Consent records (PDP) | N/A | Proof of consent — retain while processing + transition | Evidence of legal basis | Retain until processing ends + grace; document in ROPA-style record |
 | Data subject request records | N/A | PDP Ps 14 procedures | Evidence | Per request lifecycle + reasonable |
@@ -788,14 +794,14 @@ These items are **not resolved by guesswork**; they remain `REQUIRES PROFESSIONA
 | UU 27/2022 (PDP) | jdih.komdigi.go.id; pasal.id; appdi.or.id (salinan) |
 | PP 71/2019 (PSTE) | jdih.komdigi.go.id (`view/id/695`) |
 | PP 80/2019 (PMSE) | jdih.setkab.go.id |
-| Perpres 16/2018 jo 12/2021 jo 46/2025 | jdih.lkpp.go.id |
-| Kepka LKPP 21/2018, 122/2022, 177/2024 | jdih.lkpp.go.id |
+| Perpres 16/2018 jo 12/2021 jo 46/2025; Perpres 17/2023 (INAPROC) | jdih.lkpp.go.id |
+| Peraturan LKPP 6/2023 (pencabutan peraturan kearsipan); Kepka LKPP 122/2022, 177/2024 | jdih.lkpp.go.id |
 | Catalog V6 T&C | catalog.lkpp.go.id |
 | Permenkominfo 5/2020 jo 10/2021 (PSE) | jdih.komdigi.go.id |
 | Permenkominfo 11/2022 (Sertifikasi Elektronik) | jdih.komdigi.go.id (`view/id/833`) |
-| PMK 11/2025 jo 53/2025 (PPN) | jdih.kemenkeu.go.id |
-| PMK 131/2024, PMK 81/2024 (E-Faktur) | jdih.kemenkeu.go.id |
-| PER-1/PJ/2025, PER-11/PJ/2025 | jdih.kemenkeu.go.id |
+| PMK 11/2025 jo 53/2025 (DPP nilai lain) | jdih.kemenkeu.go.id |
+| PMK 131/2024 (PPN treatment); PMK 81/2024 jo 54/2025 jo 1/2026 (SIAP/Coretax) | jdih.kemenkeu.go.id |
+| PER-1/PJ/2025 (Petunjuk Teknis Faktur Pajak); PER-11/PJ/2025 (Pelaporan SIAP) | jdih.kemenkeu.go.id |
 | PMK 59/2022 (B2G PPN) | jdih.kemenkeu.go.id |
 | Permendag 31/2023 (PMSE) | jdih.kemendag.go.id |
 | BSSN (BSrE) | jdih.bssn.go.id; rootca.id (CPS PSrE Induk) |
@@ -808,9 +814,9 @@ These items are **not resolved by guesswork**; they remain `REQUIRES PROFESSIONA
 | Cluster | Scope | Status | Verification |
 |---|---|---|---|
 | A | Legal entity / Government procurement | COMPLETE | Approved w/ corrections |
-| B | LKPP / INAPROC / E-Catalog / TKDN / SNI | COMPLETE | Approved w/ refinements |
-| C | Electronic transactions / PSE / PMSE / TTE | COMPLETE | Approved w/ refinements |
-| D | Tax / DJP / PPN / PPh / Coretax | COMPLETE | Approved w/ corrections |
+| B | LKPP / INAPROC / E-Catalog / TKDN / SNI | COMPLETE | Approved w/ refinements; QC 14-Aug-2026: INAPROC basis = Perpres 17/2023 (not Kepka LKPP 21/2018, a revoked archival-retention rule) |
+| C | Electronic transactions / PSE / PMSE / TTE | COMPLETE | Approved w/ refinements; QC 14-Aug-2026: PSE-GOV-002 continuity basis = PP 71/2019 Ps 19 (Ps 21(1) is overseas-processing, NOT DR) |
+| D | Tax / DJP / PPN / PPh / Coretax | COMPLETE | Approved w/ corrections; QC 14-Aug-2026: corrected PMK 131/2024 / PMK 81/2024 / PER-1/PJ/2025 / PER-11/PJ/2025 titles & mappings; TAX-PPH-03 basis UNCERTAIN |
 | E | PDP / Security / Documents / Roles / Prohibitions / Change mgmt | COMPLETE | Approved w/ final micro-corrections (3×24h, PSE-CERT-001, Rule-ID uniqueness) |
 
 ### Appendix B — Rule ID Uniqueness (final check, 13-Aug-2026)
@@ -833,3 +839,42 @@ DOC-01..05            ROLE-01..08          PROH-01..08
 **Note 1:** `PDP-BREACH-001` (obligation) vs `INC-PDP-001` (incident classification) share Ps 46 as basis but are distinct objects with distinct IDs — intentional.
 **Note 2:** The 32-ID Cluster E core set is a subcount of the 98 cross-cluster total; the higher figure includes Cluster A–D rule prefixes (GOV/LKPP/TKDN/B2B/ETS/PMSE/TAX/SEC/DOC/ROLE/PROH).
 **Note 3:** The earlier review recorded "33" for the Cluster E core set; a recount of the enumerated IDs gives 32. The zero-duplicates guarantee is unaffected by this count correction.
+
+---
+
+## 29. Consolidated QC Findings (14-Aug-2026)
+
+Scope: citation/consistency QC only, on top of prior cluster approvals. All corrections below verified against official sources (JDIH LKPP, JDIH Kemenkeu, JDIH Komdigi) as of 14-Aug-2026.
+
+### 29.1 Corrected rules & citations (applied inline)
+
+| Location | Was | Now (verified) |
+|---|---|---|
+| §4 row 6; §6.1; LKPP-03; §18.6/18.7; §28 | INAPROC = "Kepka LKPP 21/2018" | **INAPROC legal basis = Perpres 17/2023** (Percepatan Transformasi Digital Pengadaan; INAPROC developed by LKPP + PT Telkom). Peraturan LKPP 21/2018 is the **Jadwal Retensi Arsip LKPP** (archival-retention), **revoked by Peraturan LKPP 6/2023** — historical only. |
+| §4 row 13; TAX-PPN-03/PH-03 mapping | PMK 131/2024 = "E-Faktur / sertifikat elektronik perpajakan" | PMK 131/2024 = **PPN treatment** (Impor/Penyerahan BKP & JKP, Pemanfaatan BKP Tidak Berwujud & JKP dari Luar Daerah Pabean). Basis for TAX-PPN-01 rate treatment; NOT an E-Faktur procedure. |
+| §4 row 14 | PMK 81/2024 = "tata cara E-Faktur" | PMK 81/2024 = **Ketentuan Perpajakan dalam Rangka Pelaksanaan SIAP/Coretax**, jo PMK 54/2025 (Perubahan Ketiga), jo PMK 1/2026 (Perubahan Keempat). |
+| §4 row 15; TAX-PPN-05 | PER-1/PJ/2025 = "NPWP/NIK & identitas" | PER-1/PJ/2025 = **Petunjuk Teknis Pembuatan Faktur Pajak** dalam pelaksanaan PMK 131/2024. Counterparty NPWP/NIK identity (TAX-PPN-05) lives in **PER-11/PJ/2025**. |
+| §4 row 16 | PER-11/PJ/2025 = "faktur pajak, Lampiran D code hierarchy" | PER-11/PJ/2025 = **Pelaporan PPh, PPN, PPnBM & Bea Meterai dalam SIAP**; Lampiran D = kode & nomor seri faktur pajak (confirms TAX-PPN-02 citation). |
+| TAX-PPN-03 | E-Faktur issuance = "PMK 131/2024, PMK 81/2024" | E-Faktur issuance & reporting = **PER-1/PJ/2025 + PER-11/PJ/2025 + PMK 81/2024 (SIAP umbrella)**. |
+| TAX-PPH-03 | Tax certificate/NPWP evidence = "PMK 131/2024" | **UNCERTAIN — `REQUIRES PROFESSIONAL TAX REVIEW`** (PMK 131/2024 removed; it is PPN treatment, not certificate/NPWP evidence). |
+| PSE-GOV-002; §18.3 | Continuity & DR = "Ps 19, 21(1)" | **PP 71/2019 Ps 21(1) = overseas processing/storage permitted — NOT a disaster-recovery mandate.** Continuity basis = **Ps 19** (tata kelola & keberlangsungan). DR is engineering best practice layered on Ps 19 obligations; PSE-DATA-002 retains Ps 21(1) (overseas transfer permitted). |
+| §3 row | Tax status "PKP on sell-side" | **UNVERIFIED/assumed** — PKP is a condition for e-Faktur issuance, subject to AJM DJP registration evidence (System Readiness vs Real-World split preserved). |
+| §19b rows | "10 years default (safe)" for RFQ/PO/BAST | **UNDEFINED — REQUIRES DOCUMENT-SPECIFIC LEGAL RULE.** Invoice/faktur pajak 10-yr tax basis (UU KUP) retained; blanket default removed; DOC-04 retention engine = future capability only. |
+| §4 | "33 unique Rule IDs" | **98 discrete Rule IDs** (see Appendix B); Cluster E core = 32. Count corrected; zero duplicates. |
+
+### 29.2 Remaining UNCERTAIN / open items (preserved, not resolved)
+
+- **TAX-PPH-03** — exact legal basis for counterparty tax-certificate/NPWP evidence: `REQUIRES PROFESSIONAL TAX REVIEW`.
+- **PMK 81/2024 amendment numbers** — Perubahan Pertama/Kedua not individually verified (PMK 11/2025 & PMK 53/2025 referenced in PMK 1/2026 preamble as prior amendments); document cites the verified chain (PMK 54/2025 = Perubahan Ketiga; PMK 1/2026 = Perubahan Keempat).
+- All §26 professional-review items remain open and are re-confirmed unchanged.
+- PDP implementing regulation (UU 27/2022 transition), Coretax integration approach, PMSE classification, TKDN/SNI supplier-evidence scope, PPh 23 exact model — all `REQUIRES PROFESSIONAL LEGAL/TAX REVIEW` as documented.
+
+### 29.3 Final QC recommendation
+
+**APPROVED FOR RULEBOOK — SUBJECT TO CONDITIONS.**
+
+The audit is citation-consistent and internally consistent after the QC pass: every contested citation was traced to an official source and corrected inline; no rule was invented, no cluster restarted, and the three-status model / `YES WITH CONDITIONS` verdict / 98-rule (32 core) uniqueness are intact. Conditions (unchanged from §26):
+1. Resolve TAX-PPH-03 legal basis via professional tax review before the Rulebook cites it.
+2. Verify AJM's PKP/DJP registration status for sell-side e-Faktur before claiming real-world compliance.
+3. Keep all UNCERTAIN items labelled; do not upgrade to REQUIRED without a documented legal basis.
+4. Do not hardcode tax rates or retention defaults in Module 9 — use the TaxRule engine and document-specific retention policies.
