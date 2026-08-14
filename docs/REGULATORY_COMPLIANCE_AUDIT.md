@@ -32,7 +32,7 @@ AJM (CV Abadi Jaya Mitra) operates a supplier-side B2B/B2G procurement platform 
 **Headline conclusions:**
 
 1. **Five regulatory clusters** (A–E) were researched against primary Indonesian sources (JDIH LKPP, JDIH Kemenkeu, JDIH Komdigi/Kominfo, JDIH Kemendag, JDIH Setkab, BSSN). All 5 clusters are complete for the current research scope.
-2. **Specification-readiness verdict: `YES WITH CONDITIONS`** (see §26). The platform is well specified for Modules 1–8 and ready to begin Module 9 design, provided the top-10 gaps in §26.3 are incorporated as design inputs.
+2. **Specification-readiness verdict: `YES WITH CONDITIONS`** (see §26). The platform is well specified for Modules 1–8 and ready to begin Module 9 design, provided the top gaps in §27.2 are incorporated as design inputs.
 3. **Highest-priority mandatory obligations** (regulatory applicability REQUIRED, all currently MISSING or PARTIAL in platform):
    - PSE registration & electronic certificate (PP 71/2019 Ps 6(1), Ps 51(1); Permenkominfo 5/2020 jo 10/2021; Permenkominfo 11/2022).
    - PPN compliance for B2B (faktur code hierarchy PER-11/PJ/2025; PMK 59/2022 for B2G; DPP nilai lain PMK 11/2025 jo 53/2025).
@@ -244,7 +244,7 @@ AJM is a **PSE lingkup privat** (PP 71/2019 Ps 2(2)) conducting **electronic tra
 | PSE-GOV-003 | User assistance/information | PP 71/2019 | Ps 13, 14 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
 | PSE-DATA-001 | Data protection in PSE (PDP principles) | UU 27/2022 | Ps 16 | REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
 | PSE-DATA-002 | Data localization — overseas transfer permitted with safeguards | PP 71/2019 | Ps 21(1) | CONDITIONALLY REQUIRED | UNVERIFIED | UNVERIFIED | CONFIRMED (not a blanket Indonesia-only rule) |
-| PSE-DATA-003 | Protection of strategic/personal data | PP 71/2019 | Ps 14 | CONDITIONALLY REQUIRED | UNVERIFIED | UNVERIFIED | CONFIRMED |
+| PSE-DATA-003 | Strategic-data classification/localization (NOT personal data — personal-data protection principles = PSE-DATA-001) | PP 71/2019 | Ps 14 | CONDITIONAL / LEGAL REVIEW | UNVERIFIED | UNVERIFIED | Not all personal or government data is automatically strategic; classification is fact-specific |
 | PSE-AUDIT-001 | Audit trail (log) of system operations | PP 71/2019 | **Ps 22(1)** | REQUIRED | PARTIAL (Module 8) | UNVERIFIED | CONFIRMED — map Module 8 audit log to PSE audit-trail obligation |
 | PSE-SEC-001 | Security assurance / reliability (incl. uji kelayakan) | PP 71/2019 | Ps 11, 12 | CONDITIONALLY REQUIRED | PARTIAL | UNVERIFIED | CONFIRMED |
 | PSE-CERT-001 | PSE must hold Sertifikat Elektronik issued by PSrE Indonesia | PP 71/2019 Ps 51(1); Permenkominfo 11/2022 Ps 24(2), 25 | Ps 51(1); PM 11/2022 Ps 24(2) | **REQUIRED** | **MISSING** | **UNVERIFIED** | CONFIRMED (legal); SYSTEM/REAL-WORLD separate |
@@ -321,7 +321,7 @@ AJM sells via electronic systems (PMSE). Under Permendag 31/2023, AJM is classif
 |---|---|---|---|---|---|---|
 | TAX-PPH-01 | PPh 23 withholding tracking (sell & buy side separation) | UU PPh; PP implementing | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | `REQUIRES PROFESSIONAL TAX REVIEW` for exact model |
 | TAX-PPH-02 | PPh 21 for employees | UU PPh | CONDITIONALLY REQUIRED | MISSING | UNVERIFIED | HR scope |
-| TAX-PPH-03 | Tax certificate/NPWP evidence for counterparties | UNCERTAIN — not PMK 131/2024 (that is PPN treatment) | REQUIRED | MISSING | UNVERIFIED | `REQUIRES PROFESSIONAL TAX REVIEW` |
+| TAX-PPH-03 | Tax certificate/NPWP evidence for counterparties | UNCERTAIN — not PMK 131/2024 (that is PPN treatment) | UNCERTAIN / LEGAL REVIEW | MISSING | UNVERIFIED | `REQUIRES PROFESSIONAL TAX REVIEW` (basis unresolved) |
 
 ### 12.3 Coretax
 
@@ -762,22 +762,33 @@ These items are **not resolved by guesswork**; they remain `REQUIRES PROFESSIONA
 
 **Verdict: YES WITH CONDITIONS**
 
-**Rationale:** Modules 1–8 provide a solid, well-tested foundation (audit logs, document engine, payments, notifications). The audit identified no architectural blocker to Module 9. The **conditions** are the top-10 gaps below, which must be treated as Module 9 **design inputs** (not blockers on analysis). This is a **specification-readiness verdict, NOT a legal-compliance certification.**
+**Rationale:** Modules 1–8 provide a solid, well-tested foundation (audit logs, document engine, payments, notifications). The audit identified no architectural blocker to Module 9. The **conditions** are the top gaps below, which must be treated as Module 9 **design inputs** (not blockers on analysis). This is a **specification-readiness verdict, NOT a legal-compliance certification.**
 
-### 27.2 Top 10 regulatory/business-rule gaps that must be resolved before Module 9
+### 27.2 Top gaps — design preconditions & Module 9 implementation requirements
 
-| # | Gap | Rule IDs | Class |
+#### A. DESIGN PRECONDITIONS (fact-specific / legal-review; resolve before claiming applicability)
+
+| # | Precondition | Rule IDs | Class |
 |---|---|---|---|
-| 1 | PSE registration record & PSE electronic certificate (Sertifikat Elektronik via PSrE Indonesia) | PSE-REG-001, PSE-CERT-001 | Regulatory |
-| 2 | Data Subject Rights fulfillment incl. 3×24h deadlines (withdrawal Ps 40(2), restriction Ps 41(1), breach Ps 46(1)) | PDP-RIGHT-001..009, PDP-3X24-001/002/003 | Regulatory |
-| 3 | PDP breach notification & incident flows (PDP + PSE serious disruption) | PDP-BREACH-001, INC-PDP-001, INC-PSE-001/002 | Regulatory |
-| 4 | TaxRule engine: PPN DPP nilai lain (not 12% blanket), faktur code hierarchy, B2G collection | TAX-PPN-01/02/03/04 | Tax |
-| 5 | Faktur code selection (hierarchy; code 01 default; 02 only govt collectors; 03 only designated) | TAX-PPN-02 | Tax |
-| 6 | DPO / PDP function officer appointment (conditional) | PDP-DPO-001, ROLE-02 | Regulatory |
-| 7 | Document labelling (mirror vs original; no `ORD-*` as official PO; no non-catalog as e-catalog) | GOV-01, PROH-01, PROH-02, DOC-03 | Procurement/Integrity |
-| 8 | Supplier eligibility & TKDN/SNI evidence attributes (no auto-%) | GOV-02, TKDN-01/02, PROH-03 | Procurement |
-| 9 | Retention policy engine (tax/PDP/contract/evidence matrix) | DOC-04, PROH-08, §19b | Cross-cutting |
-| 10 | Audit-trail mapping of Module 8 to PP 71/2019 Ps 22(1) | PSE-AUDIT-001, ROLE-06 | Regulatory |
+| 1 | PKP status (sell-side e-Faktur issuance) | TAX-PPN-01 | Tax / legal review — UNVERIFIED |
+| 2 | PPh applicability (23/21 exact model for the commercial structure) | TAX-PPH-01/02/03 | Tax / legal review |
+| 3 | B2G VAT collector status of actual customer base | TAX-PPN-04 | Tax / legal review |
+| 4 | DPO / PDP function officer applicability | PDP-DPO-001, ROLE-02 | Legal review (conditional) |
+| 5 | TKDN/SNI applicability to AJM's product lines | TKDN-01/02 | Procurement / legal review |
+| 6 | PMSE classification (Pedagang vs Retail Online vs platform) | PMSE-01..04 | Legal review (conditional) |
+
+#### B. MODULE 9 IMPLEMENTATION REQUIREMENTS (design inputs for Module 9)
+
+| # | Requirement | Rule IDs | Class |
+|---|---|---|---|
+| 1 | TaxRule engine: PPN DPP nilai lain, faktur code hierarchy, B2G collection | TAX-PPN-01/02/03/04 | Implementation |
+| 2 | PDP request workflow (rights fulfillment) | PDP-RIGHT-001..009, PDP-PROC-001 | Implementation |
+| 3 | Statutory timers (withdrawal Ps 40(2), restriction Ps 41(1), breach Ps 46(1)) | PDP-3X24-001/002/003 | Implementation |
+| 4 | PSE certificate registry (Sertifikat Elektronik via PSrE Indonesia) | PSE-REG-001, PSE-CERT-001 | Implementation |
+| 5 | Audit-trail mapping of Module 8 to PP 71/2019 Ps 22(1) | PSE-AUDIT-001, ROLE-06 | Implementation |
+| 6 | Document labelling (mirror vs original; no `ORD-*` as official PO; no non-catalog as e-catalog) | GOV-01, PROH-01, PROH-02, DOC-03 | Implementation |
+| 7 | Retention policy engine (tax/PDP/contract/evidence matrix) | DOC-04, PROH-08, §19b | Implementation |
+| 8 | Supplier/product compliance records (eligibility & evidence attributes, no auto-%) | GOV-02, TKDN-01/02, PROH-03 | Implementation |
 
 ### 27.3 Confidence summary
 - `CONFIRMED` legal obligations with primary sources: PSE registration & certificate, PDP rights & 3×24h, PPN/faktur rules, audit trail, incident reporting.
