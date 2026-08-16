@@ -8,15 +8,18 @@ use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Models\FakturCode;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\TaxRule;
 use App\Models\User;
 use App\Notifications\PaymentVerifiedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -24,6 +27,24 @@ use Tests\TestCase;
 class PaymentTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2025-05-15');
+
+        FakturCode::factory()->create(['code' => '01']);
+
+        TaxRule::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     private function unpaidInvoice(): array
     {
@@ -36,7 +57,7 @@ class PaymentTest extends TestCase
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
 
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
@@ -373,6 +394,58 @@ class PaymentTest extends TestCase
         $this->assertEquals(PaymentStatus::PENDING_VERIFICATION, $payment->status);
         $this->assertNull($payment->verified_by);
         $this->assertEquals(InvoiceStatus::UNPAID, $invoice->status);
+    }
+
+    public function test_review_required_invoice_rejects_verification(): void
+    {
+        Notification::fake();
+
+        $buyer = User::factory()->buyerB2b()->create();
+        $superadmin = User::factory()->superadmin()->create();
+
+        $order = Order::factory()->create([
+            'user_id' => $buyer->id,
+            'status' => OrderStatus::PENDING_PAYMENT,
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'order_id' => $order->id,
+            'status' => InvoiceStatus::REVIEW_REQUIRED,
+            'amount_due' => '0.00',
+            'grand_total' => '0.00',
+            'ppn_amount' => '0.00',
+        ]);
+
+        // A rogue zero-amount payment slips past the overpayment guard
+        // (0.00 <= 0.00); only the explicit REVIEW_REQUIRED guard can stop the
+        // PAID flip on a hold invoice.
+        $payment = Payment::factory()->pending()->create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $buyer->id,
+            'amount' => 0.00,
+        ]);
+
+        $this->actingAs($superadmin);
+
+        $response = $this->patchJson("/api/v1/payments/{$payment->id}/verify", [
+            'status' => PaymentStatus::VERIFIED->value,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('data', null)
+            ->assertJsonPath('errors.invoice_id.0', 'Invoice berstatus REVIEW_REQUIRED dan belum dapat direkonsiliasi.');
+
+        // Nothing persists: payment stays pending and the invoice is untouched.
+        $payment->refresh();
+        $invoice->refresh();
+
+        $this->assertEquals(PaymentStatus::PENDING_VERIFICATION, $payment->status);
+        $this->assertNull($payment->verified_by);
+        $this->assertNull($payment->verified_at);
+        $this->assertEquals(InvoiceStatus::REVIEW_REQUIRED, $invoice->status);
+
+        Notification::assertNothingSent();
     }
 
     public function test_verifying_partial_then_overpayment_is_rejected(): void

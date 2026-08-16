@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
@@ -36,6 +37,7 @@ class Invoice extends Model
         'due_date',
         'status',
         'paid_at',
+        'tax_calculation_version',
     ];
 
     protected function casts(): array
@@ -51,6 +53,7 @@ class Invoice extends Model
             'ppn_amount' => 'decimal:2',
             'pph_amount' => 'decimal:2',
             'grand_total' => 'decimal:2',
+            'tax_calculation_version' => 'string',
         ];
     }
 
@@ -74,6 +77,17 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Rule snapshots attached to this invoice (per line item), joined through
+     * the invoice_rule_snapshots junction. No tax math in Phase 2C.
+     */
+    public function ruleSnapshots(): BelongsToMany
+    {
+        return $this->belongsToMany(RuleSnapshot::class, 'invoice_rule_snapshots')
+            ->withPivot('tax_amount', 'created_at')
+            ->using(InvoiceRuleSnapshot::class);
     }
 
     /**
@@ -118,6 +132,10 @@ class Invoice extends Model
             InvoiceStatus::PAID => [
                 InvoiceStatus::PAID->value,
             ],
+            // REVIEW_REQUIRED is an intermediate computation state: tax is not
+            // yet computed. No manual status change may move it forward — only
+            // the recalculate-tax flow resolves it back to UNPAID.
+            InvoiceStatus::REVIEW_REQUIRED => [],
         };
     }
 

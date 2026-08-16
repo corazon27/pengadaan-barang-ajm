@@ -7,19 +7,40 @@ namespace Tests\Feature\Api;
 use App\Enums\BastStatus;
 use App\Enums\OrderStatus;
 use App\Enums\RfqStatus;
+use App\Models\FakturCode;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Rfq;
 use App\Models\RfqItem;
+use App\Models\TaxRule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DocumentTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2025-05-15');
+
+        FakturCode::factory()->create(['code' => '01']);
+
+        TaxRule::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_quotation_pdf_is_generated_when_superadmin_responds(): void
     {
@@ -103,7 +124,7 @@ class DocumentTest extends TestCase
             'user_id' => $buyer->id,
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
@@ -220,7 +241,7 @@ class DocumentTest extends TestCase
             'user_id' => $buyer->id,
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,

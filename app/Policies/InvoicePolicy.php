@@ -25,4 +25,13 @@ class InvoicePolicy
     {
         return $user->role === UserRole::SUPERADMIN;
     }
+
+    /**
+     * Determine whether the user can trigger a tax recalculation for an
+     * invoice on REVIEW_REQUIRED hold.
+     */
+    public function recalculateTax(User $user, Invoice $invoice): bool
+    {
+        return $user->role === UserRole::SUPERADMIN;
+    }
 }

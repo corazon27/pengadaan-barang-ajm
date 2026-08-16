@@ -8,18 +8,41 @@ use App\Enums\BastStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentTerm;
+use App\Models\FakturCode;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\TaxRule;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class InvoiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Freeze the clock inside the CONFIRMED TAX-PPN-01 v1 window so BAST
+        // signing resolves PPN authoritatively (Phase 2E).
+        Carbon::setTestNow('2025-05-15');
+
+        FakturCode::factory()->create(['code' => '01']);
+
+        TaxRule::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     private function deliveredOrderWithBast(): array
     {
@@ -32,7 +55,7 @@ class InvoiceTest extends TestCase
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
 
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
@@ -112,7 +135,7 @@ class InvoiceTest extends TestCase
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
 
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
@@ -370,7 +393,7 @@ class InvoiceTest extends TestCase
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
 
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,
@@ -414,7 +437,7 @@ class InvoiceTest extends TestCase
             'top_days' => 0,
         ]);
 
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,

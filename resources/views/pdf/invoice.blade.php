@@ -44,6 +44,10 @@
             <td class="info-label">No. Referensi Pesanan</td>
             <td>{{ $order->order_number }}</td>
         </tr>
+        <tr>
+            <td class="info-label">Kode Faktur</td>
+            <td>{{ $invoice->relationLoaded('ruleSnapshots') ? ($invoice->ruleSnapshots->pluck('faktur_code')->first(fn ($code) => $code !== null) ?? '-') : '-' }}</td>
+        </tr>
     </table>
 
     <table class="items">
@@ -78,6 +82,12 @@
             <td>Subtotal</td>
             <td class="amount">{{ $money($invoice->subtotal) }}</td>
         </tr>
+        @if ($invoice->status?->value !== \App\Enums\InvoiceStatus::REVIEW_REQUIRED->value)
+            <tr>
+                <td>Dasar Pengenaan Pajak (DPP)</td>
+                <td class="amount">{{ $money((string) collect($invoice->relationLoaded('ruleSnapshots') ? $invoice->ruleSnapshots : [])->reduce(fn ($carry, $snap) => bcadd($carry, (string) $snap->dpp_amount, 2), '0.00')) }}</td>
+            </tr>
+        @endif
         <tr>
             <td>PPN</td>
             <td class="amount">{{ $money($invoice->ppn_amount) }}</td>
@@ -92,8 +102,18 @@
         </tr>
     </table>
 
+    @if ($invoice->status?->value === \App\Enums\InvoiceStatus::REVIEW_REQUIRED->value)
+        <p class="note" style="color: #b45309;">
+            <strong>Perhatian:</strong> Perhitungan pajak atas invoice ini masih memerlukan peninjauan.
+            Nilai PPN dan jumlah yang harus dibayar akan diterbitkan setelah perhitungan diselesaikan.
+        </p>
+    @endif
+
     <p class="note">
         <strong>No. e-Faktur:</strong> {{ $invoice->faktur_pajak_number ?? 'Menunggu penerbitan' }}
+        @if ($invoice->tax_calculation_version)
+            &nbsp;|&nbsp; <strong>Versi Perhitungan Pajak:</strong> {{ $invoice->tax_calculation_version }}
+        @endif
     </p>
 
     <p class="closing">

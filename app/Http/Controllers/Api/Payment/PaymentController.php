@@ -9,6 +9,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
 use App\Exceptions\PaymentOverpaymentException;
+use App\Exceptions\PaymentReviewRequiredException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payment\SubmitPaymentRequest;
 use App\Http\Requests\Payment\VerifyPaymentRequest;
@@ -40,6 +41,15 @@ class PaymentController extends Controller
                 'message' => 'Invoice sudah lunas.',
                 'data' => null,
                 'errors' => ['invoice_id' => ['Invoice ini sudah berstatus PAID.']],
+            ], 422);
+        }
+
+        if ($invoice->status === InvoiceStatus::REVIEW_REQUIRED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice menunggu perhitungan pajak dan belum dapat dibayar.',
+                'data' => null,
+                'errors' => ['invoice_id' => ['Invoice berstatus REVIEW_REQUIRED dan belum dapat menerima pembayaran.']],
             ], 422);
         }
 
@@ -169,6 +179,13 @@ class PaymentController extends Controller
                 'data' => null,
                 'errors' => ['amount' => [$e->getMessage()]],
             ], 422);
+        } catch (PaymentReviewRequiredException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invoice berstatus REVIEW_REQUIRED dan belum dapat direkonsiliasi.',
+                'data' => null,
+                'errors' => ['invoice_id' => [$e->getMessage()]],
+            ], 422);
         }
 
         $payment->refresh();
@@ -227,9 +244,20 @@ class PaymentController extends Controller
 
     /**
      * Reconcile verified payments against the invoice grand total.
+     *
+     * An invoice on REVIEW_REQUIRED hold must never be reconciled: its billed
+     * amounts are provisional and payment semantics do not apply until tax is
+     * resolved. The guard throws so the enclosing transaction rolls back and
+     * the payment stays untouched.
      */
     private function reconcileInvoice(Invoice $invoice): void
     {
+        if ($invoice->status === InvoiceStatus::REVIEW_REQUIRED) {
+            throw new PaymentReviewRequiredException(
+                'Invoice berstatus REVIEW_REQUIRED dan belum dapat direkonsiliasi.'
+            );
+        }
+
         $verifiedAmount = $invoice->verifiedPaidAmount();
         $grandTotal = (string) $invoice->grand_total;
 

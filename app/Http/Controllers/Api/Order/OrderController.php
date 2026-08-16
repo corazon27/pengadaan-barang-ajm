@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\Order;
 
 use App\Enums\AuditAction;
+use App\Enums\BuyerClassification;
 use App\Enums\OrderStatus;
 use App\Enums\RfqStatus;
 use App\Enums\UserRole;
+use App\Enums\VatCollectorStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Order\CreateOrderFromRfqRequest;
 use App\Http\Requests\Order\UpdateOrderStatusRequest;
@@ -21,6 +23,7 @@ use App\Notifications\OrderShippedNotification;
 use App\Services\AuditLogger;
 use App\Services\PdfService;
 use App\Services\UniqueIdentifier;
+use App\Values\CommercialTaxContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -99,7 +102,7 @@ class OrderController extends Controller
         }
 
         try {
-            $order = DB::transaction(function () use ($rfq) {
+            $order = DB::transaction(function () use ($request, $rfq) {
                 // Acquire an exclusive row lock on the RFQ to prevent concurrent
                 // conversion (TOCTOU). The orders.rfq_id UNIQUE index is the
                 // final safety net; this lock keeps concurrent transactions
@@ -140,6 +143,11 @@ class OrderController extends Controller
                     // the product's base price if the RFQ item has no negotiated price.
                     $orderItem->unit_price = $item->negotiated_price ?? $item->product->base_price;
                     $orderItem->save();
+
+                    // Freeze the Stage-1 commercial tax context (INT-7) so the
+                    // authoritative resolution at BAST signing never reads live
+                    // catalog/user data and never invents a classification.
+                    $this->freezeOrderItemContext($request, $orderItem);
                 }
 
                 $order->recalculateTotal();
@@ -169,6 +177,34 @@ class OrderController extends Controller
             'data' => new OrderResource($order),
             'errors' => null,
         ], 201);
+    }
+
+    /**
+     * Freeze the provisional Stage-1 commercial tax context onto an order item.
+     * The buyer-controlled payload is optional; omitted values default to an
+     * explicit UNVERIFIED/NULL state (never OTHER-as-unknown) so resolution
+     * holds for review rather than guessing.
+     */
+    private function freezeOrderItemContext(CreateOrderFromRfqRequest $request, OrderItem $orderItem): void
+    {
+        $input = $request->input('tax_context', []);
+
+        $orderItem->freezeCommercialTaxContext(
+            new CommercialTaxContext(
+                unitPriceSnapshot: (string) $orderItem->unit_price,
+                lineBaseAmountSnapshot: bcmul((string) $orderItem->unit_price, (string) $orderItem->quantity, 2),
+                productClassification: isset($input['product_classification']) ? (string) $input['product_classification'] : null,
+                buyerClassification: isset($input['buyer_classification'])
+                    ? BuyerClassification::from((string) $input['buyer_classification'])
+                    : null,
+                collectorStatus: isset($input['collector_status'])
+                    ? VatCollectorStatus::from((string) $input['collector_status'])
+                    : VatCollectorStatus::UNVERIFIED,
+                transactionType: isset($input['transaction_type']) ? (string) $input['transaction_type'] : null,
+                taxpayerStatus: isset($input['taxpayer_status']) ? (string) $input['taxpayer_status'] : 'UNVERIFIED',
+            ),
+            $request->user(),
+        );
     }
 
     /**

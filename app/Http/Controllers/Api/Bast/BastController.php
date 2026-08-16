@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\Bast;
 
 use App\Enums\AuditAction;
 use App\Enums\BastStatus;
+use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentTerm;
 use App\Http\Controllers\Controller;
@@ -15,6 +16,7 @@ use App\Models\BastDocument;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Services\AuditLogger;
+use App\Services\InvoiceTaxService;
 use App\Services\PdfService;
 use App\Services\UniqueIdentifier;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +27,7 @@ class BastController extends Controller
     public function __construct(
         private readonly PdfService $pdfService,
         private readonly AuditLogger $auditLogger,
+        private readonly InvoiceTaxService $invoiceTaxService,
     ) {}
 
     /**
@@ -135,6 +138,13 @@ class BastController extends Controller
 
     /**
      * Generate an invoice tied to the order and its signed BAST.
+     *
+     * The invoice row is created first (provisional, zero tax) so the tax run
+     * is idempotent and audit-visible even on hold. PPN is then computed by
+     * InvoiceTaxService from the frozen Stage-1 commercial context. On hold the
+     * invoice stays REVIEW_REQUIRED with zero tax and no snapshots; the legacy
+     * PPh withholding remains informational only and is never added to the
+     * billed amount (grand_total = subtotal + PPN).
      */
     private function generateInvoice(Order $order, BastDocument $bast): Invoice
     {
@@ -143,24 +153,16 @@ class BastController extends Controller
         // The order total was already finalized with BC Math (INT-5).
         $subtotal = (string) $order->total_amount;
 
-        // PPN and optional PPh withholding are computed per item from the rates
-        // frozen at order time (INT-7), using BC Math for 2-decimal precision.
-        [$ppnAmount, $pphAmount] = $order->items()->get()->reduce(
-            function (array $carry, $item) {
-                $ppnRate = (string) ($item->ppn_rate_snapshot ?? 0);
+        // PPh withholding is a withholding (deducted by the buyer), kept as
+        // informational value from the frozen order-time snapshot (INT-7).
+        $pphAmount = $order->items()->get()->reduce(
+            function (string $carry, $item) {
                 $pphRate = (string) ($item->pph_rate_snapshot ?? 0);
 
-                $carry[0] = bcadd($carry[0], bcmul((string) $item->subtotal, bcdiv($ppnRate, '100', 6), 6), 2);
-                $carry[1] = bcadd($carry[1], bcmul((string) $item->subtotal, bcdiv($pphRate, '100', 6), 6), 2);
-
-                return $carry;
+                return bcadd($carry, bcmul((string) $item->subtotal, bcdiv($pphRate, '100', 6), 6), 2);
             },
-            ['0.00', '0.00']
+            '0.00'
         );
-
-        // PPh is a withholding (deducted by the buyer) and is NOT added to the
-        // billed amount: grand_total = subtotal + PPN.
-        $grandTotal = bcadd((string) $subtotal, $ppnAmount, 2);
 
         $paymentTerm = $this->resolvePaymentTerm((int) $order->top_days);
 
@@ -169,21 +171,59 @@ class BastController extends Controller
             'bast_id' => $bast->id,
             'invoice_number' => $invoiceNumber,
             'invoice_pdf_url' => '',
-            'amount_due' => $grandTotal,
+            'amount_due' => '0.00',
             'subtotal' => $subtotal,
-            'ppn_amount' => $ppnAmount,
+            'ppn_amount' => '0.00',
             'pph_amount' => $pphAmount,
             'payment_term' => $paymentTerm,
-            'grand_total' => $grandTotal,
+            'grand_total' => '0.00',
             'issued_date' => now()->toDateString(),
             'due_date' => now()->addDays($paymentTerm->days())->toDateString(),
         ]);
+
+        // The BAST signing moment is the operative tax event: rules are
+        // resolved and computed against today.
+        $outcome = $this->invoiceTaxService->applyToInvoice($invoice, $order, now()->copy());
+
+        if ($outcome->isAuthoritative()) {
+            $grandTotal = $outcome->grandTotal();
+
+            $invoice->update([
+                'amount_due' => $grandTotal,
+                'ppn_amount' => $outcome->ppnAmount,
+                'grand_total' => $grandTotal,
+                'status' => InvoiceStatus::UNPAID,
+                'tax_calculation_version' => $outcome->calculationVersion,
+            ]);
+        } else {
+            $provisionalState = $this->auditLogger->snapshot($invoice);
+
+            $invoice->update([
+                'amount_due' => '0.00',
+                'ppn_amount' => '0.00',
+                'grand_total' => '0.00',
+                'status' => InvoiceStatus::REVIEW_REQUIRED,
+            ]);
+
+            $this->auditLogger->log(
+                null,
+                AuditAction::TAX_RESOLUTION_REVIEW_REQUIRED,
+                $invoice,
+                $provisionalState,
+                array_merge($this->auditLogger->snapshot($invoice), [
+                    'hold_reason_code' => $outcome->holdReasonCode,
+                    'resolved_lines' => $outcome->resolvedLineCount,
+                    'total_lines' => $outcome->lineCount,
+                    'tax_calculation_version' => $outcome->calculationVersion,
+                ]),
+            );
+        }
 
         // Generate the invoice PDF. Failures are logged by the service and
         // leave the URL empty so the invoice is still issued.
         $path = $this->pdfService->generate(
             'pdf.invoice',
-            ['invoice' => $invoice->load('order.user', 'order.items.product')],
+            ['invoice' => $invoice->load('order.user', 'order.items.product', 'ruleSnapshots')],
             'invoice',
             'Invoice-'.$invoiceNumber.'.pdf'
         );
@@ -192,7 +232,7 @@ class BastController extends Controller
             $invoice->update(['invoice_pdf_url' => $path]);
         }
 
-        return $invoice;
+        return $invoice->refresh();
     }
 
     /**

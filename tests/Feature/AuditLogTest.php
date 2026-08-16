@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\AuditAction;
+use App\Enums\InvoiceStatus;
 use App\Models\AuditLog;
+use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -181,5 +184,30 @@ class AuditLogTest extends TestCase
             'entity_type' => 'Product',
             'entity_id' => $product->id,
         ]);
+    }
+
+    public function test_invoice_audit_snapshot_captures_tax_state_fields(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'status' => InvoiceStatus::REVIEW_REQUIRED,
+            'amount_due' => '0.00',
+            'subtotal' => '200000.00',
+            'ppn_amount' => '0.00',
+            'grand_total' => '0.00',
+            'tax_calculation_version' => null,
+        ]);
+
+        $snapshot = app(AuditLogger::class)->snapshot($invoice);
+
+        // Module-8 core fields are preserved.
+        $this->assertSame(InvoiceStatus::REVIEW_REQUIRED->value, $snapshot['status']);
+        $this->assertSame('0.00', $snapshot['amount_due']);
+        $this->assertSame('0.00', $snapshot['grand_total']);
+        $this->assertNull($snapshot['paid_at']);
+
+        // W1 hardening: tax computation fields are captured too.
+        $this->assertSame('200000.00', $snapshot['subtotal']);
+        $this->assertSame('0.00', $snapshot['ppn_amount']);
+        $this->assertNull($snapshot['tax_calculation_version']);
     }
 }

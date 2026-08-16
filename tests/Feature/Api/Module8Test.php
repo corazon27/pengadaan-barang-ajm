@@ -12,6 +12,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\RfqStatus;
 use App\Models\AuditLog;
 use App\Models\BastDocument;
+use App\Models\FakturCode;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -19,8 +20,10 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Rfq;
 use App\Models\RfqItem;
+use App\Models\TaxRule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -29,6 +32,24 @@ use Tests\TestCase;
 class Module8Test extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2025-05-15');
+
+        FakturCode::factory()->create(['code' => '01']);
+
+        TaxRule::factory()->create();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     /**
      * Drive an order through PROCESSING -> SHIPPED -> DELIVERED as superadmin
@@ -46,7 +67,7 @@ class Module8Test extends TestCase
             'user_id' => $buyer->id,
             'status' => OrderStatus::PENDING_PAYMENT,
         ]);
-        OrderItem::factory()->create([
+        OrderItem::factory()->withCommercialContext()->create([
             'order_id' => $order->id,
             'product_id' => $product->id,
             'quantity' => 2,

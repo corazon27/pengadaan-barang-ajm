@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resources\Invoice;
 
+use App\Enums\InvoiceStatus;
 use App\Http\Resources\Payment\PaymentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,6 +35,19 @@ class InvoiceResource extends JsonResource
             'payment_term_label' => $this->payment_term ? $this->payment_term->statusLabel() : null,
             'payment_status' => $this->status?->value,
             'payment_status_label' => $this->status ? $this->status->statusLabel() : null,
+            'tax_calculated' => $this->status !== InvoiceStatus::REVIEW_REQUIRED,
+            'tax_calculation_version' => $this->tax_calculation_version,
+            'faktur_code' => $this->when(
+                $this->relationLoaded('ruleSnapshots'),
+                fn () => $this->ruleSnapshots->pluck('faktur_code')->first(fn ($code) => $code !== null),
+            ),
+            'rule_snapshots' => $this->whenLoaded('ruleSnapshots', fn () => $this->ruleSnapshots->map(fn ($snapshot) => [
+                'rule_code' => $snapshot->rule_code,
+                'rule_version' => $snapshot->rule_version,
+                'faktur_code' => $snapshot->faktur_code,
+                'dpp_amount' => $snapshot->dpp_amount,
+                'tax_amount' => $snapshot->pivot?->tax_amount,
+            ])),
             'paid_amount' => $this->when($this->relationLoaded('payments'), fn () => $this->verifiedPaidAmount()),
             'issued_date' => $this->issued_date?->toISOString(),
             'due_date' => $this->due_date?->toISOString(),

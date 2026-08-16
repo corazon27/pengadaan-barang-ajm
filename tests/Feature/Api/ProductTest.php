@@ -94,8 +94,8 @@ class ProductTest extends TestCase
 
     public function test_public_can_filter_products_by_is_sni_and_tkdn(): void
     {
-        $productSni = Product::factory()->create(['is_sni' => true]);
-        $productNormal = Product::factory()->create(['is_sni' => false]);
+        $productSni = Product::factory()->create(['is_sni' => true, 'tkdn_percentage' => 50]);
+        $productNormal = Product::factory()->create(['is_sni' => false, 'tkdn_percentage' => 0]);
 
         $response = $this->get('/api/v1/products?is_sni=1');
 

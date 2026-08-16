@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Product\ProductController;
+use App\Http\Controllers\Api\Pse\PseCertificateController;
+use App\Http\Controllers\Api\Pse\PseRegistrationController;
 use App\Http\Controllers\Api\Rfq\RfqController;
 use Illuminate\Support\Facades\Route;
 
@@ -93,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
     Route::patch('/invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus']);
+    Route::post('/invoices/{invoice}/recalculate-tax', [InvoiceController::class, 'recalculateTax']);
 });
 
 /*
@@ -130,6 +133,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PSE Registry Routes (Phase 3B.1 — PSE-REG-001/002/003, PSE-CERT-001)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/pse/registrations', [PseRegistrationController::class, 'index']);
+    Route::post('/pse/registrations', [PseRegistrationController::class, 'store']);
+    Route::get('/pse/registrations/{registration}', [PseRegistrationController::class, 'show']);
+    Route::put('/pse/registrations/{registration}', [PseRegistrationController::class, 'update']);
+
+    Route::get('/pse/certificates', [PseCertificateController::class, 'index']);
+    Route::post('/pse/certificates', [PseCertificateController::class, 'store']);
+    Route::get('/pse/certificates/{certificate}', [PseCertificateController::class, 'show']);
+    Route::put('/pse/certificates/{certificate}', [PseCertificateController::class, 'update']);
 });
 
 /*
