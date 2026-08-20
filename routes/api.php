@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\ProfileController;
 use App\Http\Controllers\Api\Bast\BastController;
 use App\Http\Controllers\Api\Document\DocumentController;
+use App\Http\Controllers\Api\Incident\BreachNotificationController;
+use App\Http\Controllers\Api\Incident\IncidentController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
@@ -190,4 +192,28 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Incident & Breach Notification Routes (Phase 3B.4 — INC-PDP-001, PDP-BREACH-001)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/incidents', [IncidentController::class, 'index']);
+    Route::post('/incidents', [IncidentController::class, 'store']);
+    Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
+    Route::patch('/incidents/{incident}', [IncidentController::class, 'update']);
+    Route::patch('/incidents/{incident}/classify', [IncidentController::class, 'classify']);
+    Route::patch('/incidents/{incident}/qualify-breach', [IncidentController::class, 'qualifyBreach']);
+    Route::patch('/incidents/{incident}/resolve', [IncidentController::class, 'resolve']);
+    Route::patch('/incidents/{incident}/close', [IncidentController::class, 'close']);
+
+    Route::get('/incidents/{incident}/notifications', [BreachNotificationController::class, 'index']);
+    Route::post('/incidents/{incident}/notifications', [BreachNotificationController::class, 'store']);
+    Route::get('/incidents/{incident}/notifications/{notification}', [BreachNotificationController::class, 'show']);
+    Route::patch('/incidents/{incident}/notifications/{notification}/send', [BreachNotificationController::class, 'send']);
+    Route::patch('/incidents/{incident}/notifications/{notification}/acknowledge', [BreachNotificationController::class, 'acknowledge']);
+    Route::patch('/incidents/{incident}/notifications/{notification}/cancel', [BreachNotificationController::class, 'cancel']);
 });

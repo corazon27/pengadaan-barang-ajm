@@ -7,8 +7,10 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Models\AuditLog;
 use App\Models\BastDocument;
+use App\Models\BreachNotification;
 use App\Models\ConsentRecord;
 use App\Models\DataSubjectRequest;
+use App\Models\IncidentRegister;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -103,6 +105,23 @@ class AuditLogger
             'deadline_at',
             'status',
             'violation_state',
+        ],
+        IncidentRegister::class => [
+            'incident_type',
+            'severity',
+            'breach_qualification_status',
+            'status',
+            'affected_systems',
+            'affected_data_categories',
+            'number_of_subjects_known',
+        ],
+        BreachNotification::class => [
+            'notification_type',
+            'recipient',
+            'status',
+            'sent_at',
+            'confirmed_at',
+            'failure_reason',
         ],
     ];
 
