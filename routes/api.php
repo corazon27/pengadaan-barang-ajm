@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\Invoice\InvoiceController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Payment\PaymentController;
+use App\Http\Controllers\Api\Pdp\ConsentRecordController;
+use App\Http\Controllers\Api\Pdp\DataSubjectRequestController;
 use App\Http\Controllers\Api\Product\ProductController;
 use App\Http\Controllers\Api\Pse\PseCertificateController;
 use App\Http\Controllers\Api\Pse\PseRegistrationController;
@@ -151,6 +153,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/pse/certificates', [PseCertificateController::class, 'store']);
     Route::get('/pse/certificates/{certificate}', [PseCertificateController::class, 'show']);
     Route::put('/pse/certificates/{certificate}', [PseCertificateController::class, 'update']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PDP / DSR & Consent Routes (Phase 3B.2 — PDP-RIGHT-001..009)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/dsr', [DataSubjectRequestController::class, 'index']);
+    Route::post('/dsr', [DataSubjectRequestController::class, 'store']);
+    Route::get('/dsr/{dsr}', [DataSubjectRequestController::class, 'show']);
+    Route::patch('/dsr/{dsr}/verify-identity', [DataSubjectRequestController::class, 'verifyIdentity']);
+    Route::patch('/dsr/{dsr}/classify-right', [DataSubjectRequestController::class, 'classifyRight']);
+    Route::patch('/dsr/{dsr}/resolve-lawful-basis', [DataSubjectRequestController::class, 'resolveLawfulBasis']);
+    Route::patch('/dsr/{dsr}/open-human-review', [DataSubjectRequestController::class, 'openHumanReview']);
+    Route::patch('/dsr/{dsr}/fulfill', [DataSubjectRequestController::class, 'fulfill']);
+    Route::patch('/dsr/{dsr}/reject', [DataSubjectRequestController::class, 'reject']);
+    Route::patch('/dsr/{dsr}/close', [DataSubjectRequestController::class, 'close']);
+
+    Route::get('/consent', [ConsentRecordController::class, 'index']);
+    Route::post('/consent', [ConsentRecordController::class, 'store']);
+    Route::get('/consent/{consent}', [ConsentRecordController::class, 'show']);
+    Route::patch('/consent/{consent}/withdraw', [ConsentRecordController::class, 'withdraw']);
+    Route::patch('/consent/{consent}/supersede', [ConsentRecordController::class, 'supersede']);
+    Route::patch('/consent/{consent}/invalidate', [ConsentRecordController::class, 'invalidate']);
 });
 
 /*

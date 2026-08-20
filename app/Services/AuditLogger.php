@@ -7,6 +7,8 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Models\AuditLog;
 use App\Models\BastDocument;
+use App\Models\ConsentRecord;
+use App\Models\DataSubjectRequest;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -16,6 +18,7 @@ use App\Models\PSECertificate;
 use App\Models\PSERegistration;
 use App\Models\RegulatoryReference;
 use App\Models\Rfq;
+use App\Models\StatutoryTimer;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +71,38 @@ class AuditLogger
             'expires_at',
             'certificate_status',
             'verification_status',
+        ],
+        DataSubjectRequest::class => [
+            'subject_type',
+            'right_code',
+            'channel',
+            'identity_verification_status',
+            'identity_confidence',
+            'status',
+            'applicability_status',
+            'handled_by',
+        ],
+        ConsentRecord::class => [
+            'subject_type',
+            'purpose',
+            'processing_lawful_basis',
+            'notice_version',
+            'document_ref',
+            'consent_status',
+            'granted_at',
+            'withdrawn_at',
+            'source_channel',
+            'rule_id',
+        ],
+        StatutoryTimer::class => [
+            'timer_type',
+            'enforcement',
+            'ref_type',
+            'ref_id',
+            'started_at',
+            'deadline_at',
+            'status',
+            'violation_state',
         ],
     ];
 

@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('invoices:check-overdue')->daily()->withoutOverlapping();
+        $schedule->command('timers:enforce-statutory')->everyFifteenMinutes();
     })
     ->withMiddleware(function (Middleware $middleware): void {
         //
