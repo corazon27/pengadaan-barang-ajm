@@ -12,9 +12,11 @@ use App\Models\ConsentRecord;
 use App\Models\DataSubjectRequest;
 use App\Models\IncidentRegister;
 use App\Models\Invoice;
+use App\Models\LegalFunctionAssignment;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\ProcessorAgreement;
 use App\Models\Product;
 use App\Models\PSECertificate;
 use App\Models\PSERegistration;
@@ -122,6 +124,31 @@ class AuditLogger
             'sent_at',
             'confirmed_at',
             'failure_reason',
+            'retry_count',
+        ],
+        LegalFunctionAssignment::class => [
+            'function_code',
+            'function_category',
+            'statutory_basis',
+            'appointment_basis',
+            'applicability_status',
+            'effective_from',
+            'effective_until',
+            'scope',
+            'status',
+            'human_review_case_id',
+        ],
+        ProcessorAgreement::class => [
+            'counterparty_name',
+            'processor_role_status',
+            'agreement_status',
+            'evidence_verified',
+            'data_categories',
+            'processing_purposes',
+            'legal_basis',
+            'effective_from',
+            'effective_until',
+            'human_review_case_id',
         ],
     ];
 

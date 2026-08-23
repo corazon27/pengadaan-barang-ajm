@@ -39,4 +39,9 @@ class BreachNotificationPolicy
     {
         return $user->role === UserRole::SUPERADMIN;
     }
+
+    public function retry(User $user, BreachNotification $notification): bool
+    {
+        return $user->role === UserRole::SUPERADMIN;
+    }
 }

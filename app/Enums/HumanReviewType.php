@@ -15,4 +15,6 @@ enum HumanReviewType: string
     case REGULATORY_CHANGE = 'REGULATORY_CHANGE';
     case DOCUMENT = 'DOCUMENT';
     case GENERAL = 'GENERAL';
+    case DPO_APPLICABILITY = 'DPO_APPLICABILITY';
+    case PROCESSOR_ROLE = 'PROCESSOR_ROLE';
 }

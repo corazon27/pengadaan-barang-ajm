@@ -9,11 +9,13 @@ use App\Http\Controllers\Api\Document\DocumentController;
 use App\Http\Controllers\Api\Incident\BreachNotificationController;
 use App\Http\Controllers\Api\Incident\IncidentController;
 use App\Http\Controllers\Api\Invoice\InvoiceController;
+use App\Http\Controllers\Api\LegalFunction\LegalFunctionController;
 use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Order\OrderController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Pdp\ConsentRecordController;
 use App\Http\Controllers\Api\Pdp\DataSubjectRequestController;
+use App\Http\Controllers\Api\ProcessorAgreement\ProcessorAgreementController;
 use App\Http\Controllers\Api\Product\ProductController;
 use App\Http\Controllers\Api\Pse\PseCertificateController;
 use App\Http\Controllers\Api\Pse\PseRegistrationController;
@@ -216,4 +218,41 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/incidents/{incident}/notifications/{notification}/send', [BreachNotificationController::class, 'send']);
     Route::patch('/incidents/{incident}/notifications/{notification}/acknowledge', [BreachNotificationController::class, 'acknowledge']);
     Route::patch('/incidents/{incident}/notifications/{notification}/cancel', [BreachNotificationController::class, 'cancel']);
+    Route::patch('/incidents/{incident}/notifications/{notification}/retry', [BreachNotificationController::class, 'retry']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Legal Function Routes (Phase 3B.5 — ROLE-02..08, PDP-DPO-001/002)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/legal-functions', [LegalFunctionController::class, 'index']);
+    Route::post('/legal-functions', [LegalFunctionController::class, 'store']);
+    Route::get('/legal-functions/{legalFunction}', [LegalFunctionController::class, 'show']);
+    Route::patch('/legal-functions/{legalFunction}', [LegalFunctionController::class, 'update']);
+    Route::patch('/legal-functions/{legalFunction}/activate', [LegalFunctionController::class, 'activate']);
+    Route::patch('/legal-functions/{legalFunction}/suspend', [LegalFunctionController::class, 'suspend']);
+    Route::patch('/legal-functions/{legalFunction}/terminate', [LegalFunctionController::class, 'terminate']);
+    Route::patch('/legal-functions/{legalFunction}/open-applicability-review', [LegalFunctionController::class, 'openApplicabilityReview']);
+    Route::patch('/legal-functions/{legalFunction}/apply-applicability-review', [LegalFunctionController::class, 'applyApplicabilityReview']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Processor Agreement Routes (Phase 3B.5 — PDP-PROC-001, PROH-04/05)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/processor-agreements', [ProcessorAgreementController::class, 'index']);
+    Route::post('/processor-agreements', [ProcessorAgreementController::class, 'store']);
+    Route::get('/processor-agreements/{agreement}', [ProcessorAgreementController::class, 'show']);
+    Route::patch('/processor-agreements/{agreement}', [ProcessorAgreementController::class, 'update']);
+    Route::patch('/processor-agreements/{agreement}/agreement-status', [ProcessorAgreementController::class, 'changeAgreementStatus']);
+    Route::patch('/processor-agreements/{agreement}/verify-evidence', [ProcessorAgreementController::class, 'verifyEvidence']);
+    Route::patch('/processor-agreements/{agreement}/determine-role', [ProcessorAgreementController::class, 'determineRole']);
+    Route::patch('/processor-agreements/{agreement}/open-role-review', [ProcessorAgreementController::class, 'openRoleReview']);
+    Route::patch('/processor-agreements/{agreement}/apply-role-review', [ProcessorAgreementController::class, 'applyRoleReview']);
 });

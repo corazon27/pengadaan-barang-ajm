@@ -32,6 +32,10 @@ class BreachNotificationService
             BreachNotificationStatus::CONFIRMED,
             BreachNotificationStatus::FAILED,
         ],
+        BreachNotificationStatus::FAILED->value => [
+            BreachNotificationStatus::PREPARING,
+            BreachNotificationStatus::CANCELLED,
+        ],
     ];
 
     public function __construct(
@@ -50,6 +54,7 @@ class BreachNotificationService
     ): BreachNotification {
         $existing = BreachNotification::where('incident_id', $incident->id)
             ->where('notification_type', $type)
+            ->whereNot('status', BreachNotificationStatus::CANCELLED)
             ->exists();
 
         if ($existing) {
@@ -210,6 +215,43 @@ class BreachNotificationService
         );
 
         return $notification->refresh();
+    }
+
+    /**
+     * Retry a failed notification by transitioning FAILED → PREPARING.
+     * Reuses the same breach_notifications row.
+     * Increments retry_count and records last_retry_at.
+     */
+    public function retryNotification(
+        BreachNotification $notification,
+        User $actor,
+    ): BreachNotification {
+        return DB::transaction(function () use ($notification, $actor) {
+            $previousState = [
+                'status' => $notification->status->value,
+                'retry_count' => $notification->retry_count,
+            ];
+
+            $notification = $this->transition($notification, BreachNotificationStatus::PREPARING, $actor);
+
+            $notification->update([
+                'retry_count' => $notification->retry_count + 1,
+                'last_retry_at' => now(),
+            ]);
+
+            $this->auditLogger->log(
+                $actor,
+                AuditAction::BREACH_NOTIFICATION_RETRY,
+                $notification,
+                $previousState,
+                [
+                    'status' => BreachNotificationStatus::PREPARING->value,
+                    'retry_count' => $notification->retry_count,
+                ],
+            );
+
+            return $notification->refresh();
+        });
     }
 
     /**

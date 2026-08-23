@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\HumanReviewStatus;
+use App\Enums\HumanReviewType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ class HumanReviewCase extends Model
 
     protected $fillable = [
         'type',
+        'active_review_key',
         'rule_id',
         'trigger',
         'subject_type',
@@ -39,6 +41,7 @@ class HumanReviewCase extends Model
     protected function casts(): array
     {
         return [
+            'type' => HumanReviewType::class,
             'evidence_snapshot' => 'array',
             'status' => HumanReviewStatus::class,
             'decided_at' => 'datetime',

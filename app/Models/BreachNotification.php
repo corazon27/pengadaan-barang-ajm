@@ -27,6 +27,8 @@ class BreachNotification extends Model
         'failure_reason',
         'evidence_reference',
         'actor_user_id',
+        'retry_count',
+        'last_retry_at',
     ];
 
     protected function casts(): array
@@ -39,6 +41,7 @@ class BreachNotification extends Model
             'sent_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'failed_at' => 'datetime',
+            'last_retry_at' => 'datetime',
         ];
     }
 

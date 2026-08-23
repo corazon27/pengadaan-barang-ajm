@@ -27,6 +27,8 @@ class BreachNotificationResource extends JsonResource
             'failed_at' => $this->failed_at?->toIso8601String(),
             'failure_reason' => $this->failure_reason,
             'evidence_reference' => $this->evidence_reference,
+            'retry_count' => $this->retry_count,
+            'last_retry_at' => $this->last_retry_at?->toIso8601String(),
             'actor_user_id' => $this->actor_user_id,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

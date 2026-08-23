@@ -7,6 +7,8 @@ namespace Tests\Feature;
 use App\Enums\AuditAction;
 use App\Enums\HumanReviewStatus;
 use App\Enums\HumanReviewType;
+use App\Enums\LegalFunctionApplicability;
+use App\Enums\LegalFunctionStatus;
 use App\Events\RegulatoryReferenceCreated;
 use App\Listeners\LogRegulatoryReferenceCreated;
 use App\Models\HumanReviewCase;
@@ -140,8 +142,8 @@ class ComplianceKernelTest extends TestCase
             'function_category' => 'PROCUREMENT',
         ]);
 
-        $this->assertSame('INACTIVE', $assignment->status);
-        $this->assertSame('PENDING_LEGAL_REVIEW', $assignment->applicability_status);
+        $this->assertSame(LegalFunctionStatus::INACTIVE, $assignment->status);
+        $this->assertSame(LegalFunctionApplicability::PENDING_LEGAL_REVIEW, $assignment->applicability_status);
     }
 
     public function test_module8_audit_logger_unchanged_compatibility(): void

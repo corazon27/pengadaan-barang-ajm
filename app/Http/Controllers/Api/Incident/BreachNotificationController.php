@@ -142,4 +142,30 @@ class BreachNotificationController extends Controller
             'errors' => null,
         ], 200);
     }
+
+    public function retry(IncidentRegister $incident, BreachNotification $notification): JsonResponse
+    {
+        $this->authorize('retry', $notification);
+
+        try {
+            $notification = $this->notificationService->retryNotification(
+                notification: $notification,
+                actor: request()->user(),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
+                'errors' => ['status' => [$e->getMessage()]],
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notifikasi pelanggaran berhasil di-retry',
+            'data' => new BreachNotificationResource($notification),
+            'errors' => null,
+        ], 200);
+    }
 }
