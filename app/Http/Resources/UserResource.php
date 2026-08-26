@@ -23,7 +23,10 @@ class UserResource extends JsonResource
             'full_name' => $this->full_name,
             'role' => $this->role instanceof UserRole ? $this->role->value : $this->role,
             'company_name' => $this->company_name,
-            'npwp_number' => $this->npwp_number,
+            'npwp_number' => $this->when(
+                $request->user()->is($this->resource) || $request->user()->role === UserRole::SUPERADMIN,
+                fn () => $this->npwp_number,
+            ),
             'address' => $this->address,
             'phone_number' => $this->phone_number,
         ];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Pdp;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pdp\StoreConsentRecordRequest;
 use App\Http\Requests\Pdp\WithdrawConsentRequest;
@@ -21,13 +22,19 @@ class ConsentRecordController extends Controller
     ) {}
 
     /**
-     * List all consent records (admin only).
+     * List consent records. All authenticated users may access the collection.
+     * SUPERADMIN sees all records; regular users see only their own.
      */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', ConsentRecord::class);
 
-        $records = ConsentRecord::query()->paginate($this->perPage($request));
+        $user = $request->user();
+        $query = $user->role === UserRole::SUPERADMIN
+            ? ConsentRecord::query()
+            : ConsentRecord::where('subject_user_id', $user->id);
+
+        $records = $query->paginate($this->perPage($request));
 
         return response()->json([
             'success' => true,

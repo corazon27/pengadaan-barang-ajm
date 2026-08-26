@@ -63,7 +63,75 @@ class DsrLifecycleTest extends TestCase
         $this->actingAs($user);
 
         $this->getJson('/api/v1/dsr')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_unauthenticated_user_cannot_access_dsr_index(): void
+    {
+        $this->getJson('/api/v1/dsr')
+            ->assertUnauthorized();
+    }
+
+    public function test_regular_user_sees_only_own_dsrs_in_index(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+
+        DataSubjectRequest::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'right_code' => 'PDP-RIGHT-001',
+            'channel' => 'WEB',
+        ]);
+
+        DataSubjectRequest::create([
+            'subject_user_id' => $other->id,
+            'subject_type' => 'USER',
+            'right_code' => 'PDP-RIGHT-002',
+            'channel' => 'WEB',
+        ]);
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/dsr')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.right_code', 'PDP-RIGHT-001');
+    }
+
+    public function test_dsr_index_pagination_total_scoped_to_user(): void
+    {
+        $user = User::factory()->create();
+
+        DataSubjectRequest::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'right_code' => 'PDP-RIGHT-001',
+            'channel' => 'WEB',
+        ]);
+
+        DataSubjectRequest::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'right_code' => 'PDP-RIGHT-002',
+            'channel' => 'WEB',
+        ]);
+
+        $other = User::factory()->create();
+
+        DataSubjectRequest::create([
+            'subject_user_id' => $other->id,
+            'subject_type' => 'USER',
+            'right_code' => 'PDP-RIGHT-003',
+            'channel' => 'WEB',
+        ]);
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/dsr')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
     }
 
     public function test_subject_can_view_own_dsr(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\Pdp;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pdp\FulfillDataSubjectRequestRequest;
 use App\Http\Requests\Pdp\StoreDataSubjectRequestRequest;
@@ -20,13 +21,19 @@ class DataSubjectRequestController extends Controller
     ) {}
 
     /**
-     * List all DSRs (admin only).
+     * List DSRs. All authenticated users may access the collection.
+     * SUPERADMIN sees all records; regular users see only their own.
      */
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', DataSubjectRequest::class);
 
-        $dsrs = DataSubjectRequest::query()->paginate($this->perPage($request));
+        $user = $request->user();
+        $query = $user->role === UserRole::SUPERADMIN
+            ? DataSubjectRequest::query()
+            : DataSubjectRequest::where('subject_user_id', $user->id);
+
+        $dsrs = $query->paginate($this->perPage($request));
 
         return response()->json([
             'success' => true,

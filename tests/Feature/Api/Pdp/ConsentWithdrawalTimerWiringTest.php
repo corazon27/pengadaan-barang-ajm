@@ -22,7 +22,7 @@ class ConsentWithdrawalTimerWiringTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_withdrawal_creates_timer_in_same_transaction(): void
+    public function test_withdrawal_creates_timer_after_commit(): void
     {
         $user = User::factory()->create();
         $record = ConsentRecord::create([

@@ -11,12 +11,13 @@ use App\Models\User;
 class DataSubjectRequestPolicy
 {
     /**
-     * Admin: SUPERADMIN can manage all DSRs.
-     * Subject-self: user can view their own DSRs.
+     * All authenticated users may access the DSR collection endpoint.
+     * Record-level visibility is enforced by controller query scoping.
+     * SUPERADMIN sees all records; regular users see only subject_user_id = current user.
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === UserRole::SUPERADMIN;
+        return true;
     }
 
     public function view(User $user, DataSubjectRequest $dsr): bool

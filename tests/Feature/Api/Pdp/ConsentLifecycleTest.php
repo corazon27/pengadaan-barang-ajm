@@ -246,4 +246,124 @@ class ConsentLifecycleTest extends TestCase
         ])
             ->assertForbidden();
     }
+
+    public function test_unauthenticated_user_cannot_access_consent_index(): void
+    {
+        $this->getJson('/api/v1/consent')
+            ->assertUnauthorized();
+    }
+
+    public function test_regular_user_can_list_own_consents(): void
+    {
+        $user = User::factory()->create();
+
+        ConsentRecord::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'purpose' => 'marketing',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/consent')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_regular_user_sees_only_own_consents_in_index(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+
+        ConsentRecord::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'purpose' => 'marketing',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        ConsentRecord::create([
+            'subject_user_id' => $other->id,
+            'subject_type' => 'USER',
+            'purpose' => 'analytics',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/consent')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.purpose', 'marketing');
+    }
+
+    public function test_consent_index_pagination_total_scoped_to_user(): void
+    {
+        $user = User::factory()->create();
+
+        ConsentRecord::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'purpose' => 'marketing',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        ConsentRecord::create([
+            'subject_user_id' => $user->id,
+            'subject_type' => 'USER',
+            'purpose' => 'analytics',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        $other = User::factory()->create();
+
+        ConsentRecord::create([
+            'subject_user_id' => $other->id,
+            'subject_type' => 'USER',
+            'purpose' => 'notifications',
+            'processing_lawful_basis' => 'CONSENT',
+            'notice_version' => 'v1.0',
+            'document_ref' => 'policy_2026',
+            'source_channel' => 'WEB',
+            'granted_at' => now(),
+        ]);
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/consent')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_regular_user_empty_index_when_no_own_consents(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+
+        $this->getJson('/api/v1/consent')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
 }

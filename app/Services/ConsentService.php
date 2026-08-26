@@ -8,6 +8,7 @@ use App\Enums\AuditAction;
 use App\Enums\ConsentSourceChannel;
 use App\Enums\ConsentStatus;
 use App\Enums\LawfulBasis;
+use App\Events\ConsentWithdrawn;
 use App\Models\ConsentRecord;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,6 @@ class ConsentService
 {
     public function __construct(
         private readonly AuditLogger $auditLogger,
-        private readonly StatutoryTimerService $timerService,
     ) {}
 
     /**
@@ -69,19 +69,30 @@ class ConsentService
     /**
      * Withdraw a consent record.
      *
-     * Creates the statutory timer within the same transaction.
-     * Timer creation failure rolls back the entire withdrawal.
+     * Uses row-level locking to prevent concurrent withdrawal races.
+     * Dispatches ConsentWithdrawn event (ShouldDispatchAfterCommit).
+     * The listener creates the statutory timer after the transaction commits.
      */
     public function withdraw(
         ConsentRecord $record,
         User $actor,
     ): ConsentRecord {
         return DB::transaction(function () use ($record, $actor) {
+            $locked = ConsentRecord::where('id', $record->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked->consent_status !== ConsentStatus::ACTIVE) {
+                throw new \InvalidArgumentException(
+                    'Cannot withdraw consent in '.$locked->consent_status->value.' status.'
+                );
+            }
+
             $previousState = [
-                'consent_status' => $record->consent_status?->value,
+                'consent_status' => $locked->consent_status?->value,
             ];
 
-            $record->update([
+            $locked->update([
                 'consent_status' => ConsentStatus::WITHDRAWN,
                 'withdrawn_at' => now(),
             ]);
@@ -89,7 +100,7 @@ class ConsentService
             $this->auditLogger->log(
                 $actor,
                 AuditAction::CONSENT_WITHDRAWN,
-                $record,
+                $locked,
                 $previousState,
                 [
                     'consent_status' => ConsentStatus::WITHDRAWN->value,
@@ -97,15 +108,9 @@ class ConsentService
                 ],
             );
 
-            $deadline = $this->timerService->startForConsentWithdrawal($record);
+            ConsentWithdrawn::dispatch($locked);
 
-            $record->update([
-                'withdrawal_deadline_at' => $deadline,
-            ]);
-
-            $record->refresh();
-
-            return $record;
+            return $locked->refresh();
         });
     }
 
