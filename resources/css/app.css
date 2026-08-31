@@ -2,8 +2,92 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../../resources/js/**/*.{js,vue}';
 
 @theme {
+    /*
+     * Approved brand palette (locked — Phase 3C.3A Creative Direction Contract).
+     * All interface colors must resolve through these tokens. Do not scatter
+     * raw hex values inside components.
+     */
+    --color-brand: #2563EB; /* brand.primary — interaction & brand moments */
+    --color-brand-secondary: #3B82F6;
+    --color-brand-light: #93C5FD;
+    --color-brand-soft: #E0F2FE;
+
+    --color-surface: #FFFFFF; /* surface.default */
+    --color-surface-muted: #F1F5F9;
+
+    --color-ink: #0F172A; /* text.primary */
+    --color-ink-soft: #334155; /* text.secondary (derived — approved-hue axis) */
+    --color-inverse: #FFFFFF;
+
+    --color-line: #E2E8F0; /* border.default (derived — approved-hue axis) */
+    --color-line-strong: #2563EB; /* border.strong — focus / interactive */
+
+    /* Typography scale (Instrument Sans) */
+    --text-display: clamp(2.5rem, 5vw, 4rem);
+    --text-display--line-height: 1.1;
+    --text-h1: clamp(2rem, 4vw, 3rem);
+    --text-h1--line-height: 1.2;
+    --text-h2: clamp(1.5rem, 3vw, 2.25rem);
+    --text-h2--line-height: 1.3;
+    --text-h3: 1.25rem;
+    --text-h3--line-height: 1.4;
+    --text-lead: 1.125rem;
+    --text-lead--line-height: 1.6;
+    --text-body: 1rem;
+    --text-body--line-height: 1.6;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: 1.5;
+    --text-label: 0.875rem;
+    --text-label--line-height: 1.4;
+    --text-caption: 0.75rem;
+    --text-caption--line-height: 1.4;
+
+    /* Controlled radius system (avoid excessive rounding) */
+    --radius-brand-sm: 6px;
+    --radius-brand-md: 10px;
+    --radius-brand-lg: 14px;
+
+    /* Shadow (derived from approved navy hue) */
+    --shadow-brand-subtle: 0 1px 2px rgb(15 23 42 / 0.05);
+    --shadow-brand-elevated: 0 4px 12px rgb(15 23 42 / 0.08);
+
+    /* Motion — subtle and purposeful */
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+    body {
+        @apply bg-surface font-sans text-ink antialiased;
+    }
+}
+
+@layer utilities {
+    /*
+     * Brand signature — Structured Blue Grid.
+     * Intentional, restrained, recognizable. Used only where it supports
+     * hierarchy or the procurement/data metaphor. Decorative: aria-hidden.
+     */
+    .brand-grid {
+        background-image: linear-gradient(to right, var(--color-brand-soft) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--color-brand-soft) 1px, transparent 1px);
+        background-size: 2rem 2rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }
