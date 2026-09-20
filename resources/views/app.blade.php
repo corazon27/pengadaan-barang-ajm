@@ -12,6 +12,16 @@
             @vite(['resources/css/app.css', 'resources/js/app.js'])
         @endif
 
+        @php $seoProps = $page['props'] ?? []; @endphp
+
+        @if (($seoProps['hasActiveDiscovery'] ?? false) === true)
+            <meta name="robots" content="noindex,follow">
+        @endif
+        @if (($seoProps['canonicalUrl'] ?? null) !== null)
+            <link rel="canonical" href="{{ $seoProps['canonicalUrl'] }}">
+            <meta property="og:url" content="{{ $seoProps['canonicalUrl'] }}">
+        @endif
+
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

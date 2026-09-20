@@ -1,5 +1,16 @@
 # Project Changelog
 
+## [Phase 3C.5 - Public Catalog Discovery (Search / Filter / Sort), GATE A] - 2026-09-20
+- **Backend discovery core for the web `/katalog` path** — search (`?q=` title OR sku, case-insensitive), filter (`?sni=1`, `?tkdn_min=<0-100>`, `?availability=1`), and sort (`default|price_asc|price_desc|tkdn_desc|newest`) driven entirely by the URL, with browser Back/Forward supported and `page` reset to 1 on discovery change.
+- New `App\Enums\CatalogSort` — strict, allowlisted ordering (each non-default sort carries an explicit `id` tie-break for deterministic pagination); unknown/injection-token values resolve to `default` (never interpolated into SQL).
+- `App\Models\Product` gains allowlisted scopes `search` (grouped `%term%` on title+sku only; description intentionally not searchable), `sni`, `tkdnMin`, `available` (`stock > 0`).
+- `CatalogController` now normalizes the query string (`q` bounded 120 chars + control-char strip; `tkdn_min` clamped 0–100; array-flooded params ignored; garbage never 500s), applies scopes + enum ordering, and exposes `pagination.baseUrl` (discovery params preserved, `page` excluded) plus `hasActiveDiscovery` (any of q/sni/tkdn_min/availability/sort≠default or `page>1`).
+- Payload allowlist remains **exactly** `{id, sku, title, description, price, tkdn, hasSni, warrantyInfo, available}`; raw `stock` is never serialized. No change to `/api/v1/products` or `ProductResource`. No migration, no category, no SSR.
+- **SEO delivery:** discovery-active states emit `<meta name="robots" content="noindex,follow">` in the initial HTML; production (`APP_PUBLIC_URL` + `env=production`) emits canonical + `og:url` pointing to clean `/katalog`, exactly once each, server-rendered in `resources/views/app.blade.php` (SSR disabled). Clean `/katalog` stays indexable.
+- Tests: new `tests/Unit/CatalogSortTest.php` (8) + `tests/Feature/Web/CatalogDiscoveryTest.php` (~35, incl. initial-HTML SEO delivery).
+- Verified: SQLite suite ✅ **613 tests / 600 passed / 13 skipped / 2637 assertions**; MySQL 8.4 suite ✅ **613 / 613 / 2674 assertions / 0 skipped**; `pint` ✅; `git diff --check` ✅; raw initial-HTML SEO contract verified.
+- **Gate decision: GATE A APPROVED.** GATE B (frontend discovery toolbar) authorized separately. Master plan: `docs/superpowers/plans/2026-09-01-3c5-catalog-discovery.md`.
+
 ## [Phase B - Foundation Hardening & Reliability Remediation] - 2026-08-13
 - **AUTH-2 (High):** native login rate limiting via `RateLimiter::for('login')` in `AppServiceProvider::boot()` — 5 attempts/min per email+IP with a 429 JSON envelope and `LOGIN_THROTTLED` audit row. (Not in `bootstrap/app.php`: the middleware closure runs before the cache provider, so it fatals.)
 - **SEC-2 (High):** `UserSeeder` is now fail-closed in production — requires `SEED_DEMO_USERS=true` and the `SEED_ADMIN_PASSWORD`/`SEED_BUYER_B2B_PASSWORD`/`SEED_BUYER_B2G_PASSWORD` env vars, else throws; dev/test stay deterministic. Config via new `app.demo` block; `.env.example` updated; `UserSeederTest` (4 tests) added.

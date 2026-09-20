@@ -20,6 +20,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    hasActiveDiscovery: {
+        type: Boolean,
+        default: false,
+    },
     appName: {
         type: String,
         default: 'Pengadaan Barang AJM',
@@ -43,11 +47,9 @@ defineOptions({ layout: PublicLayout });
 <template>
     <Head :title="pageTitle">
         <meta name="description" :content="metaDescription" />
-        <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
         <meta property="og:type" content="website" />
         <meta property="og:title" :content="pageTitle" />
         <meta property="og:description" :content="metaDescription" />
-        <link v-if="canonicalUrl" property="og:url" :href="canonicalUrl" />
     </Head>
 
     <section aria-labelledby="catalog-heading" class="bg-surface">

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -55,4 +56,41 @@ class Product extends Model
         'tkdn_percentage' => 'decimal:2',
         'stock' => 'integer',
     ];
+
+    /**
+     * Search the public discovery fields (title or sku, case-insensitive).
+     * Description is intentionally not searched.
+     */
+    public function scopeSearch(Builder $query, string $term): Builder
+    {
+        return $query->where(function (Builder $query) use ($term) {
+            $query->where('title', 'like', "%{$term}%")
+                ->orWhere('sku', 'like', "%{$term}%");
+        });
+    }
+
+    /**
+     * Restrict to products marked as having SNI.
+     */
+    public function scopeSni(Builder $query): Builder
+    {
+        return $query->where('is_sni', true);
+    }
+
+    /**
+     * Restrict to products with TKDN percentage at or above the given minimum.
+     */
+    public function scopeTkdnMin(Builder $query, float $min): Builder
+    {
+        return $query->where('tkdn_percentage', '>=', $min);
+    }
+
+    /**
+     * Restrict to products currently available (raw stock above zero).
+     * Raw stock itself is never serialized by the catalog projection.
+     */
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->where('stock', '>', 0);
+    }
 }

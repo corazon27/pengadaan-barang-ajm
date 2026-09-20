@@ -503,3 +503,40 @@ See the report for the full P2/P3 inventory (query indexing QRY-1, validation VA
 
 ### Gate Decision
 **PASS** — all Phase A fixes are implemented, the previously-false-green suite is now genuinely green on both sqlite and MySQL 8.4 with real command evidence, migrations are reversible, no data-destroying operations, and business behavior is preserved. Module 9 / Phase B may proceed.
+
+---
+
+## Phase 3C.5 — Public Catalog Discovery (Search / Filter / Sort)
+
+**Status: GATE A COMPLETE — APPROVED 2026-09-20. Backend discovery core implemented and fully verified (SQLite + MySQL 8.4, Pint, diff check, initial-HTML SEO delivery). GATE B (frontend toolbar) awaits separate authorization.**
+
+Master plan: `docs/superpowers/plans/2026-09-01-3c5-catalog-discovery.md`
+
+### Implemented (GATE A)
+- **Search** (`?q=` — partial, case-insensitive on `title` OR `sku`; description intentionally NOT searchable)
+- **Filter** (`?sni=1`, `?tkdn_min=<0-100 clamped>`, `?availability=1` — stock > 0)
+- **Sort** (strict allowlist via `App\Enums\CatalogSort`: `default`, `price_asc`, `price_desc`, `tkdn_desc`, `newest`; every non-default sort carries an `id` tie-break; `tkdn_desc` puts NULL last, known values incl. 0 before NULL, via `(tkdn_percentage IS NULL), tkdn_percentage DESC`)
+- URL is the source of truth; Back/Forward supported; discovery change resets `page` to 1; invalid/garbage/array-flooded params are ignored (never 500).
+- `pagination.baseUrl` preserves discovery params (page excluded); `hasActiveDiscovery` true on any discovery-active state including `page>1`.
+- Public payload allowlist remains **exactly** `{id, sku, title, description, price, tkdn, hasSni, warrantyInfo, available}`; raw `stock` never serialized; `/api/v1/products` + `ProductResource` untouched.
+- **SEO delivery:** initial HTML carries `<meta name="robots" content="noindex,follow">` for discovery-active URLs; production emits canonical + `og:url` → clean `/katalog` exactly once; clean `/katalog` indexable. Server-rendered in `app.blade.php` (no SSR).
+
+### Key Files Created/Modified
+- `app/Enums/CatalogSort.php` (new), `app/Models/Product.php` (scopes), `app/Http/Controllers/CatalogController.php` (`normalizeDiscovery()`, `paginationBaseUrl()`, `hasActiveDiscovery`, SEO props)
+- `resources/views/app.blade.php` (server-side robots/canonical/og:url), `resources/js/Pages/Catalog.vue` (props kept; client-side SEO tags removed — single server-side source of truth)
+- `tests/Unit/CatalogSortTest.php` (8), `tests/Feature/Web/CatalogDiscoveryTest.php` (~35, incl. initial-HTML SEO delivery tests)
+
+### Verification evidence (real output)
+- SQLite suite ✅ **613 tests / 600 passed / 13 skipped / 2637 assertions**
+- MySQL 8.4 suite ✅ **613 / 613 passed / 2674 assertions / 0 skipped**
+- `pint --test` ✅ · `git diff --check` ✅ · raw initial-HTML SEO contract verified (robots/noindex + canonical/og:url exactly once, production-gated)
+- EXPLAIN (dev DB, 13 rows): documentational — structure/plan correctness only; no index migration (per repo policy); migration candidates noted in plan §Query/performance.
+
+### Explicit decisions (locked)
+- **Category is DEFERRED BY DESIGN, not a missing implementation.** Not in 3C.5 scope; no schema/migration/model/UI.
+- **Existing `/api/v1/products` contract must not be silently broken** — 3C.5 touches only the web `/katalog` path.
+- No SSR; no speculative index migration; no middleware/service; product-detail (3C.6), Cara Order (3C.7), security hardening incl. the public API internal-field leak (3C.8) remain out of scope.
+
+### GATE plan (remaining)
+- **GATE B — Frontend:** discovery toolbar (search/filter/sort), `Pagination` param-preservation, active-summary/clear, EmptyState discovery copy, responsive + a11y. Not started.
+- **GATE C — Integration:** E2E browser, EXPLAIN/query-shape verification, payload re-audit, SEO check, anti-slop/design pass, full SQLite + MySQL regression + Pint → verdict → checkpoint commit.
