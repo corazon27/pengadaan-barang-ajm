@@ -1,5 +1,15 @@
 # Project Changelog
 
+## [Phase 3C.5 - Public Catalog Discovery (Search / Filter / Sort), GATE B - frontend discovery toolbar] - 2026-09-20
+- **GATE B APPROVED by human visual review; committed as `1bea916` (no push).**
+- **Discovery toolbar** consolidated into a single self-contained **`DiscoveryToolbar.vue`** (search field + sort select kept internal, no separate SearchField/SortSelect files).
+- **New `Discovery/DiscoveryToggle.vue`** — discovery filter toggles are real `<a>` links whose **accessible name is action-aware**: inactive `Filter SNI` / `Filter tersedia` / `Filter TKDN ≥ X%` → active `Hapus filter SNI` / `Hapus filter tersedia` / `Hapus filter TKDN ≥ X%`. No `aria-current`, no `aria-pressed`, no `role="button"`, no `aria-pressed`; keyboard activation + Back/Forward via native anchor behavior only.
+- **New `Discovery/ActiveFilters.vue`** — active-filters register ("Filter aktif" list) + "Hapus filter" reset link, non-live (register never announces).
+- **Single live region:** exactly one `role="status"` result-status line ("Menampilkan N produk …") per state; active-filter row is non-live; empty state keeps its own `role="status"` (still one region — replaces the result line when the grid is absent).
+- **Pagination fix (`Pagination.vue`):** `&page=` join now correct when the discovery base already contains `?`; page always resets to 1 on any discovery change (search/sni/tkdn/availability/sort), and server-side `CatalogController` normalizes the echoed discovery prop (no client-side normalization).
+- **Empty state (discovery-aware):** `EmptyState.vue` + `Catalog.vue` show "Tidak ada produk yang cocok dengan filter"/empty-state discovery copy + "Lihat semua produk" reset action when a discovery is active.
+- Tests: `tests/Feature/Web/CatalogDiscoveryTest.php` (D1 discovery prop assertions) + `tests/Unit/CatalogSortTest.php`. **Full suite: SQLite `617 total / 604 passed / 13 skipped / 0 failed`; MySQL 8.4 `617 / 617 / 0 / 0`; Pint clean; `npm run build` ✅ (no Vite errors); E2E browser pass (toggles/URL/page-reset/`&page=` join/live region/aria-names) + screenshots (`e2e/*.png`) approved visually by a human.**
+
 ## [Phase 3C.5 - Public Catalog Discovery (Search / Filter / Sort), GATE A] - 2026-09-20
 - **Backend discovery core for the web `/katalog` path** — search (`?q=` title OR sku, case-insensitive), filter (`?sni=1`, `?tkdn_min=<0-100>`, `?availability=1`), and sort (`default|price_asc|price_desc|tkdn_desc|newest`) driven entirely by the URL, with browser Back/Forward supported and `page` reset to 1 on discovery change.
 - New `App\Enums\CatalogSort` — strict, allowlisted ordering (each non-default sort carries an explicit `id` tie-break for deterministic pagination); unknown/injection-token values resolve to `default` (never interpolated into SQL).

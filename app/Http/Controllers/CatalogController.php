@@ -74,6 +74,16 @@ class CatalogController extends Controller
 
         return Inertia::render('Catalog', [
             'products' => $products,
+            // D1: the normalized server truth, echoed verbatim so the frontend
+            // renders exactly what the server applied. `page` intentionally lives
+            // only on `pagination` — it is never part of `discovery`.
+            'discovery' => [
+                'q' => $discovery['q'],
+                'sni' => $discovery['sni'],
+                'tkdn_min' => $discovery['tkdn_min'],
+                'availability' => $discovery['availability'],
+                'sort' => $discovery['sort']->value,
+            ],
             'pagination' => [
                 'currentPage' => $paginator->currentPage(),
                 'lastPage' => $paginator->lastPage(),

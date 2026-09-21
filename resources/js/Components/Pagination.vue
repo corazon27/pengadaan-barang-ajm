@@ -46,7 +46,13 @@ const pages = computed(() => {
     return result;
 });
 
-const href = (page) => `${props.baseUrl}?page=${page}`;
+// The server's baseUrl may already carry discovery params (`/katalog?q=meja&sni=1`);
+// append `page` with the correct separator so discovery is preserved across pages.
+const href = (page) => {
+    const separator = props.baseUrl.includes('?') ? '&' : '?';
+
+    return `${props.baseUrl}${separator}page=${page}`;
+};
 </script>
 
 <template>

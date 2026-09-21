@@ -417,6 +417,63 @@ class CatalogDiscoveryTest extends TestCase
                 ->where('pagination.baseUrl', '/katalog'));
     }
 
+    // ---------------------------------------------- discovery state prop (D1)
+
+    public function test_discovery_prop_exposes_the_normalized_server_state(): void
+    {
+        Product::factory()->count(2)->create();
+
+        $this->get('/katalog?q=meja&sni=1&tkdn_min=42.5&availability=1&sort=price_asc')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Catalog')
+                ->has('discovery')
+                ->where('discovery.q', 'meja')
+                ->where('discovery.sni', true)
+                ->where('discovery.tkdn_min', 42.5)
+                ->where('discovery.availability', true)
+                ->where('discovery.sort', 'price_asc'));
+    }
+
+    public function test_discovery_prop_is_default_shaped_on_clean_catalog(): void
+    {
+        Product::factory()->count(2)->create();
+
+        $props = $this->get('/katalog')->viewData('page')['props'];
+
+        $this->assertSame([
+            'q' => null,
+            'sni' => false,
+            'tkdn_min' => null,
+            'availability' => false,
+            'sort' => 'default',
+        ], $props['discovery']);
+    }
+
+    public function test_discovery_prop_echoes_ignored_invalid_input(): void
+    {
+        Product::factory()->count(2)->create();
+
+        $this->get('/katalog?q=++++&tkdn_min=abc&sni[]=1&sort=garbage')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('discovery.q', null)
+                ->where('discovery.tkdn_min', null)
+                ->where('discovery.sni', false)
+                ->where('discovery.sort', 'default'));
+    }
+
+    public function test_discovery_prop_excludes_page_which_lives_only_in_pagination(): void
+    {
+        Product::factory()->count(25)->create(['title' => 'Meja Kantor']);
+
+        $props = $this->get('/katalog?q=meja&page=2')->viewData('page')['props'];
+
+        $this->assertArrayNotHasKey('page', $props['discovery']);
+        $this->assertArrayHasKey('currentPage', $props['pagination']);
+        $this->assertSame(2, $props['pagination']['currentPage']);
+    }
+
     // ---------------------------------------------- initial HTML SEO delivery
 
     public function test_clean_catalog_initial_html_has_no_noindex(): void

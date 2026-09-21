@@ -6,6 +6,8 @@ import Container from '../Components/Container.vue';
 import ProductCard from '../Components/ProductCard.vue';
 import Pagination from '../Components/Pagination.vue';
 import EmptyState from '../Components/EmptyState.vue';
+import DiscoveryToolbar from '../Components/Discovery/DiscoveryToolbar.vue';
+import ActiveFilters from '../Components/Discovery/ActiveFilters.vue';
 
 const props = defineProps({
     products: {
@@ -24,6 +26,16 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    discovery: {
+        type: Object,
+        default: () => ({
+            q: null,
+            sni: false,
+            tkdn_min: null,
+            availability: false,
+            sort: 'default',
+        }),
+    },
     appName: {
         type: String,
         default: 'Pengadaan Barang AJM',
@@ -40,6 +52,26 @@ const total = computed(() => props.pagination.total ?? props.products.length);
 const pageTitle = `${appNameLabel} — Katalog Produk & Platform Pengadaan B2B/B2G`;
 const metaDescription =
     'Jelajahi katalog produk publik AJM untuk pengadaan B2B/B2G — spesifikasi teknis, informasi TKDN dan SNI, serta ketersediaan.';
+
+// The single live region: one role="status" line that announces the result
+// count and, when discovery is active, a compact summary of the active filters
+// in the SAME announcement. ActiveFilters row is ordinary content, not a live
+// region. One navigation → one announcement.
+const resultStatus = computed(() => {
+    const parts = [];
+    if (props.discovery.q) parts.push(`pencarian "${props.discovery.q}"`);
+    if (props.discovery.sni) parts.push('SNI');
+    if (props.discovery.tkdn_min !== null && props.discovery.tkdn_min !== undefined) {
+        parts.push(`TKDN ≥ ${props.discovery.tkdn_min}%`);
+    }
+    if (props.discovery.availability) parts.push('tersedia');
+
+    if (parts.length === 0) {
+        return `Menampilkan ${total.value} produk pada katalog publik.`;
+    }
+
+    return `Menampilkan ${total.value} produk dengan filter: ${parts.join(', ')}.`;
+});
 
 defineOptions({ layout: PublicLayout });
 </script>
@@ -72,9 +104,6 @@ defineOptions({ layout: PublicLayout });
                         Daftar produk publik untuk kebutuhan pengadaan — spesifikasi teknis,
                         informasi TKDN dan SNI, serta ketersediaan.
                     </p>
-                    <p class="mt-5 text-label font-medium text-ink">
-                        {{ total }} produk pada katalog publik
-                    </p>
                 </div>
 
                 <div
@@ -91,22 +120,39 @@ defineOptions({ layout: PublicLayout });
                 </div>
             </div>
 
-            <div class="mt-10 border-t border-line lg:mt-14"></div>
+            <DiscoveryToolbar :discovery="discovery" />
+            <ActiveFilters :discovery="discovery" />
 
-            <div
-                v-if="products.length > 0"
-                class="mt-10 grid grid-cols-1 gap-6 min-[520px]:grid-cols-2 lg:mt-14 lg:grid-cols-3"
-            >
-                <ProductCard
-                    v-for="product in products"
-                    :key="product.id"
-                    :product="product"
+            <p v-if="products.length > 0" role="status" class="mt-8 text-label font-medium text-ink">
+                {{ resultStatus }}
+            </p>
+
+            <div class="mt-6 border-t border-line pt-6">
+                <div
+                    v-if="products.length > 0"
+                    class="grid grid-cols-1 gap-6 min-[520px]:grid-cols-2 lg:grid-cols-3"
+                >
+                    <ProductCard
+                        v-for="product in products"
+                        :key="product.id"
+                        :product="product"
+                    />
+                </div>
+
+                <EmptyState
+                    v-else
+                    :title="hasActiveDiscovery ? 'Tidak ada produk yang cocok dengan filter' : undefined"
+                    :message="
+                        hasActiveDiscovery
+                            ? 'Coba ubah kata kunci pencarian atau hapus salah satu filter untuk melihat lebih banyak produk.'
+                            : undefined
+                    "
+                    :action-href="hasActiveDiscovery ? '/katalog' : null"
+                    :action-label="hasActiveDiscovery ? 'Lihat semua produk' : ''"
                 />
+
+                <Pagination :pagination="pagination" :base-url="pagination.baseUrl" />
             </div>
-
-            <EmptyState v-else />
-
-            <Pagination :pagination="pagination" />
         </Container>
     </section>
 </template>
