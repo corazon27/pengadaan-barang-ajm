@@ -1,4 +1,4 @@
-*.log
+﻿*.log
 .DS_Store
 .env
 .env.backup
@@ -26,5 +26,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-# web-automation tool cache (not project deliverables).playwright-mcp/
+# web automation test artifacts + tool caches (verified deliverables live under e2e/; these are tool runtime caches, not project output)
+/playwright-mcp
+.playwright-mcp
+.playwright/
 
