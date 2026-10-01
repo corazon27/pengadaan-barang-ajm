@@ -190,15 +190,49 @@ class CatalogDiscoveryTest extends TestCase
 
     // ---------------------------------------------------------------- sort
 
-    public function test_default_sort_is_insertion_order(): void
+    public function test_default_sort_orders_newest_first(): void
     {
-        $first = Product::factory()->create(['base_price' => 900.00]);
-        $second = Product::factory()->create(['base_price' => 100.00]);
+        // Insertion order is deliberately the reverse of chronological order, so an
+        // id-ascending (insertion-order) default cannot satisfy this test.
+        $oldest = Product::factory()->create(['created_at' => now()->subDays(5)]);
+        $middle = Product::factory()->create(['created_at' => now()->subDay()]);
+        $newest = Product::factory()->create(['created_at' => now()]);
 
         $this->get('/katalog')
+            ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->where('products.0.id', $first->id)
-                ->where('products.1.id', $second->id));
+                ->where('products.0.id', $newest->id)
+                ->where('products.1.id', $middle->id)
+                ->where('products.2.id', $oldest->id));
+    }
+
+    public function test_default_sort_produces_the_same_ordering_as_explicit_newest_sort(): void
+    {
+        $oldest = Product::factory()->create(['created_at' => now()->subDays(5)]);
+        $newest = Product::factory()->create(['created_at' => now()]);
+
+        foreach (['/katalog', '/katalog?sort=newest'] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->where('products.0.id', $newest->id)
+                    ->where('products.1.id', $oldest->id));
+        }
+    }
+
+    public function test_default_sort_breaks_created_at_ties_by_id_ascending(): void
+    {
+        $sameInstant = now();
+        $firstOfTie = Product::factory()->create(['created_at' => $sameInstant]);
+        $secondOfTie = Product::factory()->create(['created_at' => $sameInstant]);
+        $newerThanTies = Product::factory()->create(['created_at' => $sameInstant->copy()->addDay()]);
+
+        $this->get('/katalog')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('products.0.id', $newerThanTies->id)
+                ->where('products.1.id', $firstOfTie->id)
+                ->where('products.2.id', $secondOfTie->id));
     }
 
     public function test_price_asc_sort_orders_by_base_price(): void

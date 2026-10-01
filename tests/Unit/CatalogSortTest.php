@@ -35,16 +35,28 @@ class CatalogSortTest extends TestCase
         $this->assertSame(CatalogSort::DEFAULT, CatalogSort::fromRequest($token));
     }
 
-    public function test_default_applies_only_id_asc_ordering(): void
+    public function test_default_applies_newest_ordering(): void
     {
         $orders = CatalogSort::DEFAULT->apply(Product::query())->getQuery()->orders;
 
-        $this->assertSame([['column' => 'id', 'direction' => 'asc']], $orders);
+        $this->assertSame([
+            ['column' => 'created_at', 'direction' => 'desc'],
+            ['column' => 'id', 'direction' => 'asc'],
+        ], $orders);
     }
 
-    public function test_every_non_default_sort_adds_an_id_asc_tiebreak(): void
+    public function test_default_and_newest_share_identical_ordering(): void
+    {
+        $default = CatalogSort::DEFAULT->apply(Product::query())->getQuery()->orders;
+        $newest = CatalogSort::NEWEST->apply(Product::query())->getQuery()->orders;
+
+        $this->assertSame($newest, $default);
+    }
+
+    public function test_every_sort_adds_an_id_asc_tiebreak(): void
     {
         foreach ([
+            CatalogSort::DEFAULT,
             CatalogSort::PRICE_ASC,
             CatalogSort::PRICE_DESC,
             CatalogSort::TKDN_DESC,

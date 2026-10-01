@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\Builder;
  * Strict, allowlisted catalog sort orderings.
  *
  * Every ordering is explicitly mapped here; arbitrary `orderBy` input is never
- * accepted. Each non-default ordering appends an `id` tie-break so pagination
- * stays deterministic (product ids are time-ordered UUIDs → insertion order).
+ * accepted. Every ordering appends an `id` tie-break so pagination stays
+ * deterministic. DEFAULT is the same contract as NEWEST: `created_at DESC, id ASC`,
+ * which is what the user-facing "Terbaru" label promises.
  */
 enum CatalogSort: string
 {
@@ -41,11 +42,10 @@ enum CatalogSort: string
     public function apply(Builder $query): Builder
     {
         return match ($this) {
-            self::DEFAULT => $query->orderBy('id'),
+            self::DEFAULT, self::NEWEST => $query->orderByDesc('created_at')->orderBy('id'),
             self::PRICE_ASC => $query->orderBy('base_price')->orderBy('id'),
             self::PRICE_DESC => $query->orderByDesc('base_price')->orderBy('id'),
             self::TKDN_DESC => $query->orderByRaw('(tkdn_percentage IS NULL), tkdn_percentage DESC')->orderBy('id'),
-            self::NEWEST => $query->orderByDesc('created_at')->orderBy('id'),
         };
     }
 }
