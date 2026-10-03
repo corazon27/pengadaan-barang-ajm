@@ -345,6 +345,6 @@ modified. Both E2E servers were stopped, ports released, and all temporary fixtu
 | Machine verification | **PASS** — SQLite 649/636+13, MySQL 649/649, focused 84, cross-engine 12/12, 13/13 HTTP matrix, Pint, diff-check, build |
 | Visual review | **APPROVED** by human judgement over supplied desktop screenshots |
 | Scope audit | **CLEAN** — no API, migration, `ProductResource`, `ProductPolicy`, `app.blade.php`, media, publication, SSR, or unrelated-refactor change |
-| Commit status | **NOT COMMITTED, NOT PUSHED** at documentation closure |
+| Commit status | **IMPLEMENTATION COMMITTED as `205d1c8`; documentation finalized in `6739077` and `5a28818`; NOT PUSHED** |
 
-PHASE 3C.6 — IMPLEMENTATION AND VALIDATION COMPLETE — DOCUMENTATION CLOSED — AWAITING HUMAN COMMIT REVIEW
+PHASE 3C.6 — IMPLEMENTATION AND VALIDATION COMPLETE — DOCUMENTATION CLOSED — COMMITTED — NOT PUSHED
