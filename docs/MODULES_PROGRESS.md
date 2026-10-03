@@ -545,7 +545,7 @@ Master plan: `docs/superpowers/plans/2026-09-01-3c5-catalog-discovery.md`
 
 ## Phase 3C.6 — Public Product Detail
 
-**Status: COMPLETE — VALIDATED AND HUMAN-APPROVED 2026-10-01. Implementation locked; SQLite + MySQL 8.4 green; browser, accessibility, responsive and SEO validation passed; desktop visual review approved. NOT COMMITTED, NOT PUSHED.**
+**Status: COMPLETE — VALIDATED AND HUMAN-APPROVED 2026-10-01. Implementation locked; SQLite + MySQL 8.4 green; browser, accessibility, responsive and SEO validation passed; desktop visual review approved. COMMITTED as `205d1c8`; documentation status finalized in `6739077`; NOT PUSHED.**
 
 Master plan: `docs/superpowers/plans/2026-10-01-3c6-product-detail.md`
 
