@@ -540,3 +540,70 @@ Master plan: `docs/superpowers/plans/2026-09-01-3c5-catalog-discovery.md`
 ### GATE plan (remaining)
 - **GATE B — Frontend:** discovery toolbar (search/filter/sort), `Pagination` param-preservation, active-summary/clear, EmptyState discovery copy, responsive + a11y. Not started.
 - **GATE C — Integration:** E2E browser, EXPLAIN/query-shape verification, payload re-audit, SEO check, anti-slop/design pass, full SQLite + MySQL regression + Pint → verdict → checkpoint commit.
+
+---
+
+## Phase 3C.6 — Public Product Detail
+
+**Status: COMPLETE — VALIDATED AND HUMAN-APPROVED 2026-10-01. Implementation locked; SQLite + MySQL 8.4 green; browser, accessibility, responsive and SEO validation passed; desktop visual review approved. NOT COMMITTED, NOT PUSHED.**
+
+Master plan: `docs/superpowers/plans/2026-10-01-3c6-product-detail.md`
+
+### Planning completion
+Planning, gate reconciliation and scope locking completed before implementation. The identifier, authorization boundary, public payload, case/canonical strategy, SEO guarantees and TKDN/SNI split were each locked explicitly; deviations required reporting back rather than unilateral change.
+
+### Locked SKU route
+- `GET /produk/{sku}` → `produk.show` → `App\Http\Controllers\ProductDetailController::show`.
+- **Public identifier is the SKU** — not the slug, not the UUID. The SKU was already in the 3C.5 catalog payload allowlist, so the card became navigational with **no payload change and no slug exposure**.
+- **Non-canonical SKU casing returns 404**, never a redirect. Verified engine-agnostically: `products.sku` is `utf8mb4_unicode_ci` (case-**insensitive**) on MySQL 8.4.3, so a naive `where('sku', …)` would wrongly return 200. Enforcement is the portable PHP check `$product->sku !== $sku` — no `COLLATE`, no `LOWER()`, no functional index, no collation migration.
+- A genuinely **lowercase persisted SKU resolves** (`srv-0001` → `200`).
+- **Authorization is public and locked:** no auth middleware, no `ProductPolicy` invocation, no new authorization framework. `ProductPolicy::view` is not guest-safe and was deliberately not used.
+- Not-found is the **plain Laravel 404** — no custom 404 system was introduced.
+
+### Six-field public projection
+A dedicated inline projection; `ProductResource` is **not** reused. Exactly:
+
+```
+{ sku, title, description, price, warrantyInfo, available }
+```
+
+`price` is a string, `available` a boolean. `stock` is selected only to derive `available` and is then dropped, so the raw count never reaches the client. Excluded columns are never loaded, so they cannot be serialized: raw `stock`, `margin_percentage`, `tax_rate_percentage`, `pph_rate_percentage`, `estimated_shipping`, `slug`, `datasheet_url`, TKDN/SNI, `created_at`/`updated_at`, NIB/NPWP/PKP, bank details, private supplier data, compliance data, transaction data.
+
+### TKDN/SNI exclusion
+`tkdn_percentage` and `is_sni` are **excluded from Product Detail**. The 3C.5 catalog card's display-only TKDN/SNI presence markers are **untouched**. Reintroduction requires evidence-based justification and legal/regulatory review. **`ProductCertification` was NOT created.**
+
+### Canonical / SEO contract (authoritative — no crawler-complete claim)
+1. No `noindex` on Product Detail.
+2. Exactly one canonical in production.
+3. Exactly one matching `og:url` in production.
+4. Canonical derived from the **persisted SKU** (`route('produk.show', ['sku' => $product->sku], absolute: false)` — the parameter is passed explicitly because implicit resolution would emit the UUID route key).
+5. Non-production emits neither canonical nor `og:url` (gated on production env **and** `APP_PUBLIC_URL`).
+6. **F2 inherited and NOT REMEDIATED** — Blade-level canonical/`og:url` stay tied to the initial shell across client-side Inertia navigation, consistent with the locked SSR-disabled architecture.
+
+Guarantees 1–5 were verified against a real production-mode server serving the real initial document.
+
+### Validation results (final baselines, not invented)
+- SQLite suite: **649 total / 636 passed / 13 skipped / 0 failed** — 2877 assertions.
+- MySQL 8.4.3 suite: **649 total / 649 passed / 0 failed** — 2914 assertions.
+- Focused pre-regression suite (ProductDetail + Catalog + CatalogDiscovery): **84 tests / 779 assertions / 0 failed**.
+- Focused Product Detail cross-engine subset on MySQL: **12/12 passed**.
+- Delta from the 620-test baseline is **+29**, exactly matching the 29-test `ProductDetailTest`.
+- `pint` passed · `git diff --check` clean · `npm run build` passed (563 modules; only the pre-existing optional `fontaine` warning).
+- HTTP status matrix **13/13** with no redirects; production and non-production SEO shell both verified.
+
+### Browser / E2E result
+Catalog → detail → back passed with discovery state (`?sort=price_asc&page=2`) preserved and restored on Back. Keyboard-only navigation passed (Tab traversal from the skip link to the card link, then Enter). Skip link functional. Catalog card asserted in the live DOM as exactly one `<article>` + one `<a>` with no nested interactive elements. Mobile **375px** passed with **zero horizontal overflow**. Console clean.
+
+One test was removed during validation: `test_catalog_emits_the_product_detail_link` asserted against server-rendered raw HTML for a link that only exists after Vue runtime rendering — invalid under the locked no-SSR architecture, not a broken feature. It was replaced by `test_catalog_payload_exposes_the_sku_needed_by_the_detail_link`. Browser/E2E is the authoritative navigation verification layer.
+
+### Visual approval
+The human reviewer **APPROVED** the supplied desktop Product Detail and desktop Catalog screenshots. Browser/mobile visual validation passed independently. **No visual redesign was required or performed.**
+
+### Scope / out-of-scope summary
+No API changes (`/api/v1/products`, `ProductResource`, API controllers/requests/policies untouched — the public API internal-field leak remains tracked as 3C.8); no migrations or schema changes; no `ProductResource` change; no `ProductPolicy` change; no `app.blade.php` change; no media subsystem; no publication state; no certification subsystem; no SSR; no Module 9 / dashboards / transaction workflows; no rate limiting; no custom 404 system; no shared `formatPrice` extraction; no SKU write-path validation change; no change to 3C.5 catalog behavior.
+
+### Known accepted limitations
+SKU mutability can orphan old URLs (no redirect map, SKU should be treated as effectively immutable); the `/` / reserved-character SKU limitation is inherited; SKU write validation remains pre-existing and out of scope; 404 remains plain Laravel; F2 remains inherited; the `fontaine` warning remains pre-existing.
+
+### Teardown / hygiene
+E2E fixtures lived only in a throwaway SQLite database on a dedicated port and were deleted. The MySQL **development** database was never written to (13 pre-existing rows, none created during 3C.6). `.env`, `config/database.php` and `resources/views/app.blade.php` unmodified. Servers stopped, ports released.
