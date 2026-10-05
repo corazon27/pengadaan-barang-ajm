@@ -1,8 +1,8 @@
-# Technical Progress: API Modules
+﻿# Technical Progress: API Modules
 
 ---
 
-## Module 1 — Authentication & User Profile API
+## Module 1 â€” Authentication & User Profile API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
@@ -34,26 +34,26 @@ All JSON responses (success, validation, auth errors) use the same structure:
 Global exception handlers registered in `bootstrap/app.php` shape `ValidationException` and `AuthenticationException` into this envelope for `api/*` and JSON requests.
 
 ### Policies
-- **UserPolicy** (`app/Policies/UserPolicy.php`): `view`, `update` → `actor->is(target) || actor->role === UserRole::SUPERADMIN`
+- **UserPolicy** (`app/Policies/UserPolicy.php`): `view`, `update` â†’ `actor->is(target) || actor->role === UserRole::SUPERADMIN`
 - Auto-discovered by Laravel 13 (no manual registration required).
 
 ### Key Files Created/Modified
-- `app/Models/User.php` — added `HasApiTokens` trait
-- `app/Traits/ApiResponser.php` — `successResponse()`, `errorResponse()`
-- `app/Http/Requests/Auth/LoginRequest.php` — email/password validation
-- `app/Http/Requests/Auth/UpdateProfileRequest.php` — profile fields only (no role/email)
-- `app/Http/Resources/UserResource.php` — public profile fields + role value
-- `app/Http/Controllers/Api/Auth/AuthController.php` — login, logout, me
-- `app/Http/Controllers/Api/Auth/ProfileController.php` — update profile
+- `app/Models/User.php` â€” added `HasApiTokens` trait
+- `app/Traits/ApiResponser.php` â€” `successResponse()`, `errorResponse()`
+- `app/Http/Requests/Auth/LoginRequest.php` â€” email/password validation
+- `app/Http/Requests/Auth/UpdateProfileRequest.php` â€” profile fields only (no role/email)
+- `app/Http/Resources/UserResource.php` â€” public profile fields + role value
+- `app/Http/Controllers/Api/Auth/AuthController.php` â€” login, logout, me
+- `app/Http/Controllers/Api/Auth/ProfileController.php` â€” update profile
 - `app/Policies/UserPolicy.php`
-- `bootstrap/app.php` — `apiPrefix('api/v1')`, global exception envelope handlers
-- `routes/api.php` — auth routes under `/api/v1/auth`
-- `tests/Feature/Api/AuthTest.php` — 8 tests (login, invalid creds, validation, me, profile update, role/email immutability, logout revocation, unauthenticated access)
-- `database/migrations/2026_08_12_072420_create_personal_access_tokens_table.php` — UUID morphs for tokenable
+- `bootstrap/app.php` â€” `apiPrefix('api/v1')`, global exception envelope handlers
+- `routes/api.php` â€” auth routes under `/api/v1/auth`
+- `tests/Feature/Api/AuthTest.php` â€” 8 tests (login, invalid creds, validation, me, profile update, role/email immutability, logout revocation, unauthenticated access)
+- `database/migrations/2026_08_12_072420_create_personal_access_tokens_table.php` â€” UUID morphs for tokenable
 
 ---
 
-## Module 2 — Product Catalog API
+## Module 2 â€” Product Catalog API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
@@ -77,28 +77,28 @@ Global exception handlers registered in `bootstrap/app.php` shape `ValidationExc
 Example: `/api/v1/products?search=laptop&is_sni=1&min_tkdn=40&in_stock=1&per_page=20`
 
 ### RBAC Policy (`ProductPolicy`)
-- `viewAny`, `view` → **public** (any authenticated or unauthenticated user)
-- `create`, `update`, `delete` → **`UserRole::SUPERADMIN` only**
+- `viewAny`, `view` â†’ **public** (any authenticated or unauthenticated user)
+- `create`, `update`, `delete` â†’ **`UserRole::SUPERADMIN` only**
 - Enforced in controller via `$this->authorize('create', Product::class)` (or `update`/`delete` with model instance).
 
 ### Key Files Created/Modified
-- `app/Models/Product.php` — model with UUID PK, fillable attributes, decimal casts
-- `database/migrations/2026_08_12_060700_create_products_table.php` — products table (sku, title, slug, description, base_price, margin_percentage, tax_rate_percentage, estimated_shipping, tkdn_percentage, is_sni, warranty_info, datasheet_url, stock)
-- `database/factories/ProductFactory.php` — realistic product data generation
-- `app/Http/Requests/Product/StoreProductRequest.php` — create validation (sku/slug unique, numeric ranges, stock >= 0)
-- `app/Http/Requests/Product/UpdateProductRequest.php` — update validation (unique ignoring current ID)
-- `app/Http/Resources/Product/ProductResource.php` — API output serialization
-- `app/Policies/ProductPolicy.php` — public read, superadmin CRUD
-- `app/Http/Controllers/Api/Product/ProductController.php` — index, show, store, update, destroy
-- `routes/api.php` — product routes under `/api/v1/products`
-- `tests/Feature/Api/ProductTest.php` — 9 tests (public filtering, single product, superadmin CRUD, 403 for non-admin)
-- `database/factories/UserFactory.php` — added `superadmin()`, `buyerB2b()`, `buyerB2g()` states
+- `app/Models/Product.php` â€” model with UUID PK, fillable attributes, decimal casts
+- `database/migrations/2026_08_12_060700_create_products_table.php` â€” products table (sku, title, slug, description, base_price, margin_percentage, tax_rate_percentage, estimated_shipping, tkdn_percentage, is_sni, warranty_info, datasheet_url, stock)
+- `database/factories/ProductFactory.php` â€” realistic product data generation
+- `app/Http/Requests/Product/StoreProductRequest.php` â€” create validation (sku/slug unique, numeric ranges, stock >= 0)
+- `app/Http/Requests/Product/UpdateProductRequest.php` â€” update validation (unique ignoring current ID)
+- `app/Http/Resources/Product/ProductResource.php` â€” API output serialization
+- `app/Policies/ProductPolicy.php` â€” public read, superadmin CRUD
+- `app/Http/Controllers/Api/Product/ProductController.php` â€” index, show, store, update, destroy
+- `routes/api.php` â€” product routes under `/api/v1/products`
+- `tests/Feature/Api/ProductTest.php` â€” 9 tests (public filtering, single product, superadmin CRUD, 403 for non-admin)
+- `database/factories/UserFactory.php` â€” added `superadmin()`, `buyerB2b()`, `buyerB2g()` states
 
 > **Phase A (AUTH-1):** `ProductController::destroy` now calls `$this->authorize('delete', $product)`; a non-superadmin `DELETE /products/{product}` returns **403** (previously 200). Covered by `test_non_admin_receives_403_on_product_delete`.
 
 ---
 
-## Module 3 — RFQ Workflow API
+## Module 3 â€” RFQ Workflow API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
@@ -128,30 +128,30 @@ Example: `/api/v1/products?search=laptop&is_sni=1&min_tkdn=40&in_stock=1&per_pag
 Invalid transitions return **422 Unprocessable Entity** with `{ success: false, message: "Transisi status tidak valid.", errors: { status: [...] } }`.
 
 ### RBAC Policy (`RfqPolicy`)
-- `viewAny` → **true** (controller scopes the query)
-- `view` → **owner OR Superadmin**
-- `create` → **buyer (BUYER_B2B/BUYER_B2G) or Superadmin**
-- `respond` → **Superadmin only**
-- `updateStatus` → **owner OR Superadmin** (controller validates transitions)
+- `viewAny` â†’ **true** (controller scopes the query)
+- `view` â†’ **owner OR Superadmin**
+- `create` â†’ **buyer (BUYER_B2B/BUYER_B2G) or Superadmin**
+- `respond` â†’ **Superadmin only**
+- `updateStatus` â†’ **owner OR Superadmin** (controller validates transitions)
 
 ### Key Files Created/Modified
-- `app/Enums/RfqStatus.php` — added `QUOTED` and `CANCELLED`
-- `app/Models/Rfq.php` — added `valid_until`, `admin_notes`, `status` to `$fillable`; datetime cast for `valid_until`
-- `app/Models/RfqItem.php` — added `target_price`, `notes` to `$fillable`; decimal casts
-- `database/migrations/2026_08_13_add_rfq_workflow_columns.php` — adds `valid_until`/`admin_notes` to `rfqs`, `target_price`/`notes` to `rfq_items`
-- `app/Http/Requests/Rfq/StoreRfqRequest.php` — nested items validation (product_id, quantity, target_price)
-- `app/Http/Requests/Rfq/RespondRfqRequest.php` — Superadmin-only; offered_price, valid_until (after today)
-- `app/Http/Requests/Rfq/UpdateRfqStatusRequest.php` — status validation against all enum values
-- `app/Http/Resources/Rfq/RfqItemResource.php` — item serialization with subtotal calculations
-- `app/Http/Resources/Rfq/RfqResource.php` — RFQ serialization with total computations and status labels
-- `app/Policies/RfqPolicy.php` — RBAC for RFQ operations
-- `app/Http/Controllers/Api/Rfq/RfqController.php` — full CRUD + respond + status update with transition validation
-- `routes/api.php` — RFQ routes under `/api/v1/rfqs`
-- `tests/Feature/Api/RfqTest.php` — 12 tests (isolation, Superadmin respond, owner transitions, 403/422 enforcement)
+- `app/Enums/RfqStatus.php` â€” added `QUOTED` and `CANCELLED`
+- `app/Models/Rfq.php` â€” added `valid_until`, `admin_notes`, `status` to `$fillable`; datetime cast for `valid_until`
+- `app/Models/RfqItem.php` â€” added `target_price`, `notes` to `$fillable`; decimal casts
+- `database/migrations/2026_08_13_add_rfq_workflow_columns.php` â€” adds `valid_until`/`admin_notes` to `rfqs`, `target_price`/`notes` to `rfq_items`
+- `app/Http/Requests/Rfq/StoreRfqRequest.php` â€” nested items validation (product_id, quantity, target_price)
+- `app/Http/Requests/Rfq/RespondRfqRequest.php` â€” Superadmin-only; offered_price, valid_until (after today)
+- `app/Http/Requests/Rfq/UpdateRfqStatusRequest.php` â€” status validation against all enum values
+- `app/Http/Resources/Rfq/RfqItemResource.php` â€” item serialization with subtotal calculations
+- `app/Http/Resources/Rfq/RfqResource.php` â€” RFQ serialization with total computations and status labels
+- `app/Policies/RfqPolicy.php` â€” RBAC for RFQ operations
+- `app/Http/Controllers/Api/Rfq/RfqController.php` â€” full CRUD + respond + status update with transition validation
+- `routes/api.php` â€” RFQ routes under `/api/v1/rfqs`
+- `tests/Feature/Api/RfqTest.php` â€” 12 tests (isolation, Superadmin respond, owner transitions, 403/422 enforcement)
 
 ---
 
-## Module 4 — Order & Invoicing Workflow API
+## Module 4 â€” Order & Invoicing Workflow API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
@@ -161,7 +161,7 @@ Invalid transitions return **422 Unprocessable Entity** with `{ success: false, 
 | GET | `/api/v1/orders/{order}` | `auth:sanctum` + `OrderPolicy@view` | Show order with items, RFQ, BAST, and invoices |
 | PATCH | `/api/v1/orders/{order}/status` | `auth:sanctum` + `OrderPolicy@updateStatus` | Advance / cancel order with transition validation; auto-generates BAST on `DELIVERED` |
 | GET | `/api/v1/orders/{order}/bast` | `auth:sanctum` + `BastDocumentPolicy@view` | Show the order's BAST document |
-| POST | `/api/v1/orders/{order}/bast/sign` | `auth:sanctum` + `BastDocumentPolicy@sign` | Buyer signs BAST → order `COMPLETED`, auto-generates UNPAID invoice |
+| POST | `/api/v1/orders/{order}/bast/sign` | `auth:sanctum` + `BastDocumentPolicy@sign` | Buyer signs BAST â†’ order `COMPLETED`, auto-generates UNPAID invoice |
 | GET | `/api/v1/invoices` | `auth:sanctum` | List invoices (scoped by role); optional `payment_status` filter |
 | GET | `/api/v1/invoices/{invoice}` | `auth:sanctum` + `InvoicePolicy@view` | Show single invoice |
 | PATCH | `/api/v1/invoices/{invoice}/payment-status` | `auth:sanctum` + `InvoicePolicy@updatePaymentStatus` | Superadmin-only: mark invoice UNPAID/PAID/OVERDUE (sets `paid_at` on PAID) |
@@ -176,48 +176,48 @@ Replaced with the procurement lifecycle set: `PENDING_PAYMENT`, `PROCESSING`, `S
 | `PROCESSING` | `SHIPPED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
 | `SHIPPED` | `DELIVERED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
 | `DELIVERED` | `COMPLETED`, `CANCELLED` | Forward: Superadmin; cancel: Owner or Superadmin |
-| `COMPLETED` | — | Terminal |
-| `CANCELLED` | — | Terminal |
+| `COMPLETED` | â€” | Terminal |
+| `CANCELLED` | â€” | Terminal |
 
 Side effects:
-- **`DELIVERED`** → auto-creates a `BastDocument` (`PENDING_SIGNATURE`) if none exists.
-- **BAST sign** (`POST /orders/{order}/bast/sign`) → BAST `SIGNED` (records `signed_by`, `signed_at`, `signed_date`, `notes`), order `COMPLETED`, and generates an `Invoice` (`UNPAID`) with `subtotal` (order total), `tax_amount` (per-item product tax rate), `grand_total`, and `amount_due`, due `top_days` after issue.
+- **`DELIVERED`** â†’ auto-creates a `BastDocument` (`PENDING_SIGNATURE`) if none exists.
+- **BAST sign** (`POST /orders/{order}/bast/sign`) â†’ BAST `SIGNED` (records `signed_by`, `signed_at`, `signed_date`, `notes`), order `COMPLETED`, and generates an `Invoice` (`UNPAID`) with `subtotal` (order total), `tax_amount` (per-item product tax rate), `grand_total`, and `amount_due`, due `top_days` after issue.
 
-### RFQ → Order Conversion
+### RFQ â†’ Order Conversion
 `POST /api/v1/orders` with `{ rfq_id }` requires the RFQ to be `APPROVED` and not yet converted. The order is created as `PENDING_PAYMENT` for the RFQ owner and its items are copied at the quoted `negotiated_price`; the RFQ is then set to `CONVERTED_TO_ORDER`. Violations return 403/422.
 
 ### Invoice Payment Status (`InvoiceStatus`)
 `UNPAID`, `OVERDUE`, `PAID` (stored in `invoices.status`, exposed as `payment_status` in the resource). Only Superadmin may update it; `PAID` stamps `paid_at`.
 
 ### RBAC Policies
-- **OrderPolicy** — `viewAny` true (scoped in controller), `view` owner/Superadmin, `create` buyer/Superadmin, `updateStatus` owner/Superadmin (controller validates transitions)
-- **BastDocumentPolicy** — `view` owner/Superadmin, `sign` owner/Superadmin
-- **InvoicePolicy** — `view` owner/Superadmin, `updatePaymentStatus` Superadmin only
+- **OrderPolicy** â€” `viewAny` true (scoped in controller), `view` owner/Superadmin, `create` buyer/Superadmin, `updateStatus` owner/Superadmin (controller validates transitions)
+- **BastDocumentPolicy** â€” `view` owner/Superadmin, `sign` owner/Superadmin
+- **InvoicePolicy** â€” `view` owner/Superadmin, `updatePaymentStatus` Superadmin only
 
 ### Key Files Created/Modified
-- `app/Enums/OrderStatus.php` — replaced with the new lifecycle statuses
-- `app/Enums/BastStatus.php` — new (`PENDING_SIGNATURE`, `SIGNED`)
-- `database/migrations/2026_08_14_add_order_workflow_columns.php` — MySQL-guarded `orders.status` enum ALTER; `bast_documents` gains `status`, `signed_by`, `signed_at`, `notes` and nullable `bast_document_url`/`signed_date`; `invoices` gains `subtotal`, `tax_amount`, `grand_total`
-- `app/Models/Order.php` — `statusLabel()` helper
-- `app/Models/BastDocument.php` — BAST signing fields + `BastStatus` cast + `statusLabel()`
-- `app/Models/Invoice.php` — `subtotal`/`tax_amount`/`grand_total` fillable + casts
+- `app/Enums/OrderStatus.php` â€” replaced with the new lifecycle statuses
+- `app/Enums/BastStatus.php` â€” new (`PENDING_SIGNATURE`, `SIGNED`)
+- `database/migrations/2026_08_14_add_order_workflow_columns.php` â€” MySQL-guarded `orders.status` enum ALTER; `bast_documents` gains `status`, `signed_by`, `signed_at`, `notes` and nullable `bast_document_url`/`signed_date`; `invoices` gains `subtotal`, `tax_amount`, `grand_total`
+- `app/Models/Order.php` â€” `statusLabel()` helper
+- `app/Models/BastDocument.php` â€” BAST signing fields + `BastStatus` cast + `statusLabel()`
+- `app/Models/Invoice.php` â€” `subtotal`/`tax_amount`/`grand_total` fillable + casts
 - `app/Http/Requests/Order/CreateOrderFromRfqRequest.php`, `UpdateOrderStatusRequest.php`
 - `app/Http/Requests/Bast/SignBastRequest.php`
 - `app/Http/Requests/Invoice/UpdateInvoicePaymentStatusRequest.php`
 - `app/Http/Resources/Order/OrderResource.php`, `OrderItemResource.php`, `app/Http/Resources/Bast/BastResource.php`, `app/Http/Resources/Invoice/InvoiceResource.php`
 - `app/Policies/OrderPolicy.php`, `BastDocumentPolicy.php`, `InvoicePolicy.php`
 - `app/Http/Controllers/Api/Order/OrderController.php`, `Api/Bast/BastController.php`, `Api/Invoice/InvoiceController.php`
-- `routes/api.php` — order, BAST, and invoice routes
-- `tests/Feature/Api/OrderTest.php` — 10 tests (conversion, isolation, status transitions, BAST generation)
-- `tests/Feature/Api/InvoiceTest.php` — 13 tests (BAST signing → invoice, single-invoice invariant, payment status updates, RBAC)
+- `routes/api.php` â€” order, BAST, and invoice routes
+- `tests/Feature/Api/OrderTest.php` â€” 10 tests (conversion, isolation, status transitions, BAST generation)
+- `tests/Feature/Api/InvoiceTest.php` â€” 13 tests (BAST signing â†’ invoice, single-invoice invariant, payment status updates, RBAC)
 
 ---
 
-## Audit — Security, Concurrency & Precision Fixes
+## Audit â€” Security, Concurrency & Precision Fixes
 
 ### Concurrency (TOCTOU)
 - `OrderController::store` now calls `$rfq->lockForUpdate()` **inside** the transaction, then re-checks `Order::where('rfq_id', $rfq->id)->exists()` before creating the order. A `QueryException` with SQLSTATE `23000` (unique-violation) is caught and returned as HTTP 422.
-- `orders.rfq_id` retains its `UNIQUE` index (migration `2026_08_12_060604`) — the DB is the final safety net.
+- `orders.rfq_id` retains its `UNIQUE` index (migration `2026_08_12_060604`) â€” the DB is the final safety net.
 
 ### RFQ Item Ownership
 - `RfqController::respond` now validates that every submitted `rfq_item_id` belongs to the RFQ being responded to; a mismatch returns 422 (`items.*.rfq_item_id`) with **no partial writes**.
@@ -226,31 +226,31 @@ Side effects:
 - `OrderPolicy::create(User $user, Rfq $rfq)` checks `$user->is($rfq->user)` or Superadmin; the controller passes the RFQ instance.
 
 ### Monetary Precision
-- All tax / total calculations in `BastController::generateInvoice()` use BC Math (`bcadd`, `bcmul`, `bcdiv`) with 2-decimal scale; per-item tax = `subtotal × tax_rate ÷ 100`, summed across items.
+- All tax / total calculations in `BastController::generateInvoice()` use BC Math (`bcadd`, `bcmul`, `bcdiv`) with 2-decimal scale; per-item tax = `subtotal Ã— tax_rate Ã· 100`, summed across items.
 
 ### New Tests Added
 | Test | File | Purpose |
 |------|------|---------|
-| `test_rfq_can_only_be_converted_to_one_order` | OrderTest | Second conversion → 422, exactly 1 order in DB |
-| `test_concurrent_conversion_is_prevented_by_db_unique_constraint` | OrderTest | Direct `INSERT` with same `rfq_id` → QueryException (skipped on SQLite) |
+| `test_rfq_can_only_be_converted_to_one_order` | OrderTest | Second conversion â†’ 422, exactly 1 order in DB |
+| `test_concurrent_conversion_is_prevented_by_db_unique_constraint` | OrderTest | Direct `INSERT` with same `rfq_id` â†’ QueryException (skipped on SQLite) |
 | `test_database_prevents_duplicate_rfq_conversion` | OrderTest | Same as above, separate test (skipped on SQLite) |
-| `test_rfq_item_belonging_to_another_rfq_is_rejected` | RfqTest | Foreign `rfq_item_id` → 422, no DB writes |
+| `test_rfq_item_belonging_to_another_rfq_is_rejected` | RfqTest | Foreign `rfq_item_id` â†’ 422, no DB writes |
 | `test_valid_rfq_items_still_work_after_fix` | RfqTest | Regression guard for valid respond flow |
 
 ### Files Changed (commit `977148e`)
 `OrderController`, `OrderPolicy`, `RfqController`, `OrderTest`, `RfqTest`
 
 ### Verified
-`pint` ✅ · `php artisan test` ✅ 49 passed / 3 skipped (SQLite concurrency skips) · 239 assertions
+`pint` âœ… Â· `php artisan test` âœ… 49 passed / 3 skipped (SQLite concurrency skips) Â· 239 assertions
 
 ---
 
-## Module 5 — Payment Processing & Payment Terms (TOP / Tax Handling) API
+## Module 5 â€” Payment Processing & Payment Terms (TOP / Tax Handling) API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
 |--------|----------|-------|-------------|
-| POST | `/api/v1/invoices/{invoice}/payments` | `auth:sanctum` | Buyer submits a payment proof (amount, method, date, file) → `PENDING_VERIFICATION` |
+| POST | `/api/v1/invoices/{invoice}/payments` | `auth:sanctum` | Buyer submits a payment proof (amount, method, date, file) â†’ `PENDING_VERIFICATION` |
 | GET | `/api/v1/payments` | `auth:sanctum` | List payments; Superadmin sees all, buyers only their own invoices; `status` filter |
 | PATCH | `/api/v1/payments/{payment}/verify` | `auth:sanctum` | Superadmin approves (`VERIFIED`) or rejects (`REJECTED`) a payment; auto-reconciles invoice |
 | GET | `/api/v1/payments/{payment}/proof` | `auth:sanctum` | Stream the payment proof file (owner/Superadmin only, 404 if missing) |
@@ -262,45 +262,45 @@ Side effects:
 
 ### Tax Breakdown (`InvoiceResource`)
 - `tax_amount` column renamed to **`ppn_amount`**; new `pph_amount` + `payment_term` columns on `invoices`; per-product `products.pph_rate_percentage` (nullable).
-- PPN and PPh computed **per item** with BC Math: `subtotal × rate ÷ 100`, summed, 2-decimal scale.
+- PPN and PPh computed **per item** with BC Math: `subtotal Ã— rate Ã· 100`, summed, 2-decimal scale.
 - **PPh is a withholding, NOT added to the billed amount**: `grand_total = subtotal + ppn`; `amount_due = grand_total`. PPh is recorded separately for reporting.
 
 ### Payment Status State Machine (`PaymentStatus`)
-`PENDING_VERIFICATION` → `VERIFIED` | `REJECTED` (terminal). Only Superadmin may transition; already-settled payments return 422.
+`PENDING_VERIFICATION` â†’ `VERIFIED` | `REJECTED` (terminal). Only Superadmin may transition; already-settled payments return 422.
 - Verification writes `verified_by`, `verified_at`; rejection additionally writes `rejection_reason` (required).
 
 ### Reconciliation Logic (`PaymentController::verify`)
 Runs inside `DB::transaction()` with `lockForUpdate()` on both the payment and its invoice (serializes concurrent verifications):
-- `Σ VERIFIED amounts ≥ grand_total` → invoice `PAID` + `paid_at = now()`
-- `0 < Σ < grand_total` → `PARTIALLY_PAID`
-- `Σ = 0` → `UNPAID`
+- `Î£ VERIFIED amounts â‰¥ grand_total` â†’ invoice `PAID` + `paid_at = now()`
+- `0 < Î£ < grand_total` â†’ `PARTIALLY_PAID`
+- `Î£ = 0` â†’ `UNPAID`
 - Summation uses `verifiedPaidAmount()` on the Invoice model via BC Math `bcadd`.
 
 ### RBAC Policies
-- **PaymentPolicy** — `view` owner/Superadmin, `create` (invoice owner/Superadmin), `verify` Superadmin only
-- **InvoicePolicy** — `view` owner/Superadmin, `updatePaymentStatus` Superadmin only (manual override kept)
+- **PaymentPolicy** â€” `view` owner/Superadmin, `create` (invoice owner/Superadmin), `verify` Superadmin only
+- **InvoicePolicy** â€” `view` owner/Superadmin, `updatePaymentStatus` Superadmin only (manual override kept)
 
 ### Key Files Created/Modified
-- `database/migrations/2026_08_14_add_payment_processing.php` — renames `invoices.tax_amount→ppn_amount`, adds `pph_amount`/`payment_term`, adds `products.pph_rate_percentage`, creates `payments`
-- `app/Enums/PaymentTerm.php`, `PaymentStatus.php`, `PaymentMethod.php` — new; `InvoiceStatus` gains `PARTIALLY_PAID`
-- `app/Models/Payment.php` — new; `Invoice` gains `payments()` + `verifiedPaidAmount()`; `Product` gains `pph_rate_percentage`
-- `app/Http/Requests/Payment/SubmitPaymentRequest.php`, `VerifyPaymentRequest.php` — new
-- `app/Http/Resources/Payment/PaymentResource.php` — new; `InvoiceResource` exposes `ppn_amount`, `pph_amount`, `payment_term`, `paid_amount`, `payments`
-- `app/Policies/PaymentPolicy.php` — new
-- `app/Http/Controllers/Api/Payment/PaymentController.php` — new (`store`, `index`, `verify`)
-- `app/Http/Controllers/Api/Bast/BastController.php` — invoice generation reworked for PPN/PPh/payment term
-- `routes/api.php` — payment routes
-- `database/factories/PaymentFactory.php` — new; `InvoiceFactory`/`ProductFactory` updated
-- `tests/Feature/Api/PaymentTest.php` — 20 tests; `InvoiceTest` updated for rename + PPh test
+- `database/migrations/2026_08_14_add_payment_processing.php` â€” renames `invoices.tax_amountâ†’ppn_amount`, adds `pph_amount`/`payment_term`, adds `products.pph_rate_percentage`, creates `payments`
+- `app/Enums/PaymentTerm.php`, `PaymentStatus.php`, `PaymentMethod.php` â€” new; `InvoiceStatus` gains `PARTIALLY_PAID`
+- `app/Models/Payment.php` â€” new; `Invoice` gains `payments()` + `verifiedPaidAmount()`; `Product` gains `pph_rate_percentage`
+- `app/Http/Requests/Payment/SubmitPaymentRequest.php`, `VerifyPaymentRequest.php` â€” new
+- `app/Http/Resources/Payment/PaymentResource.php` â€” new; `InvoiceResource` exposes `ppn_amount`, `pph_amount`, `payment_term`, `paid_amount`, `payments`
+- `app/Policies/PaymentPolicy.php` â€” new
+- `app/Http/Controllers/Api/Payment/PaymentController.php` â€” new (`store`, `index`, `verify`)
+- `app/Http/Controllers/Api/Bast/BastController.php` â€” invoice generation reworked for PPN/PPh/payment term
+- `routes/api.php` â€” payment routes
+- `database/factories/PaymentFactory.php` â€” new; `InvoiceFactory`/`ProductFactory` updated
+- `tests/Feature/Api/PaymentTest.php` â€” 20 tests; `InvoiceTest` updated for rename + PPh test
 
 > **Phase A (SEC-1):** payment proofs are stored on the private `documents` disk (`payments/proofs/...`); `proof_file_url` holds the private path (no public URL). A guarded `GET /payments/{payment}/proof` streams the file with the correct Content-Type; 404 when the file is missing; 403 for non-owners.
 
 ### Verified
-`pint` ✅ · `php artisan test` ✅ 64 passed / 3 skipped (SQLite concurrency skips) · 384 assertions
+`pint` âœ… Â· `php artisan test` âœ… 64 passed / 3 skipped (SQLite concurrency skips) Â· 384 assertions
 
 ---
 
-## Module 6 — Notification System (In-App & Email) API
+## Module 6 â€” Notification System (In-App & Email) API
 
 ### Implemented Routes & Methods
 | Method | Endpoint | Guard | Description |
@@ -310,38 +310,38 @@ Runs inside `DB::transaction()` with `lockForUpdate()` on both the payment and i
 | POST | `/api/v1/notifications/read-all` | `auth:sanctum` | Mark all of the caller's unread notifications as read |
 
 ### Notification Classes (queued, `database` + `mail` channels)
-- `RfqSubmittedNotification` — sent to **all** `SUPERADMIN` users when a buyer submits an RFQ.
-- `RfqRespondedNotification` — sent to the **RFQ owner** when a Superadmin responds with a quote.
-- `OrderShippedNotification` — sent to the **buyer** when an order transitions to `SHIPPED`.
-- `PaymentVerifiedNotification` — sent to the **buyer** when a payment is verified, carrying the reconciled invoice status (`PAID` / `PARTIALLY_PAID`).
+- `RfqSubmittedNotification` â€” sent to **all** `SUPERADMIN` users when a buyer submits an RFQ.
+- `RfqRespondedNotification` â€” sent to the **RFQ owner** when a Superadmin responds with a quote.
+- `OrderShippedNotification` â€” sent to the **buyer** when an order transitions to `SHIPPED`.
+- `PaymentVerifiedNotification` â€” sent to the **buyer** when a payment is verified, carrying the reconciled invoice status (`PAID` / `PARTIALLY_PAID`).
 
 All notifications implement `ShouldQueue`; `toArray()` returns structured data (`title`, `message`, `action_url`, entity id/number, `invoice_status` for payments); `toMail()` returns an Indonesian `MailMessage`. Triggers fire **after** the surrounding `DB::transaction` commits.
 
 ### Delivery & Storage
 - `notifications` table: `uuid` PK (via `uuidMorphs('notifiable')`, matching the UUID `users.id`), `type`, text `data`, nullable `read_at`, timestamps.
 - `App\Models\Notification` extends `DatabaseNotification` + `HasUuids`; adds `isRead()` helper.
-- Production/dev use `QUEUE_CONNECTION=database`, `MAIL_MAILER=log` → run `php artisan queue:work`. Tests use `QUEUE_CONNECTION=sync` + `MAIL_MAILER=array` so notifications run inline.
+- Production/dev use `QUEUE_CONNECTION=database`, `MAIL_MAILER=log` â†’ run `php artisan queue:work`. Tests use `QUEUE_CONNECTION=sync` + `MAIL_MAILER=array` so notifications run inline.
 
 ### API Response
 - `NotificationResource` fields: `id`, `type` (class basename), `title`, `message`, `action_url`, `read_at` (ISO), `is_read`, `created_at`.
 - List endpoint wraps results in `data.items` (flat array) + `data.pagination` (`current_page`, `per_page`, `total`, `last_page`).
 
 ### RBAC Policies
-- **NotificationPolicy** — `view` SUPERADMIN or recipient; `markAsRead` (update) recipient only. A non-recipient `PATCH` returns 403.
+- **NotificationPolicy** â€” `view` SUPERADMIN or recipient; `markAsRead` (update) recipient only. A non-recipient `PATCH` returns 403.
 
 ### Key Files Created/Modified
-- `database/migrations/2026_08_14_create_notifications_table.php` — schema
-- `app/Models/Notification.php` — new
-- `app/Policies/NotificationPolicy.php` — new
-- `app/Notifications/RfqSubmittedNotification.php`, `RfqRespondedNotification.php`, `OrderShippedNotification.php`, `PaymentVerifiedNotification.php` — new
-- `app/Http/Resources/Notification/NotificationResource.php` — new
-- `app/Http/Controllers/Api/Notification/NotificationController.php` — new (`index`, `markAsRead`, `readAll`)
-- `routes/api.php` — notification routes
-- `app/Http/Controllers/Api/Rfq/RfqController.php`, `Api/Order/OrderController.php`, `Api/Payment/PaymentController.php` — notification dispatch triggers
-- `tests/Feature/Api/NotificationTest.php` — 8 tests; `RfqTest`/`OrderTest`/`PaymentTest` extended with `Notification::fake()` + `assertSentTo`
+- `database/migrations/2026_08_14_create_notifications_table.php` â€” schema
+- `app/Models/Notification.php` â€” new
+- `app/Policies/NotificationPolicy.php` â€” new
+- `app/Notifications/RfqSubmittedNotification.php`, `RfqRespondedNotification.php`, `OrderShippedNotification.php`, `PaymentVerifiedNotification.php` â€” new
+- `app/Http/Resources/Notification/NotificationResource.php` â€” new
+- `app/Http/Controllers/Api/Notification/NotificationController.php` â€” new (`index`, `markAsRead`, `readAll`)
+- `routes/api.php` â€” notification routes
+- `app/Http/Controllers/Api/Rfq/RfqController.php`, `Api/Order/OrderController.php`, `Api/Payment/PaymentController.php` â€” notification dispatch triggers
+- `tests/Feature/Api/NotificationTest.php` â€” 8 tests; `RfqTest`/`OrderTest`/`PaymentTest` extended with `Notification::fake()` + `assertSentTo`
 
 ### Verified
-`pint` ✅ · `php artisan test` ✅ 72 passed / 3 skipped (SQLite concurrency skips) · 453 assertions
+`pint` âœ… Â· `php artisan test` âœ… 72 passed / 3 skipped (SQLite concurrency skips) Â· 453 assertions
 ---
 
 ## Module 7 - Document Engine (PDF Generation)
@@ -439,9 +439,9 @@ All keys are env-driven with sensible placeholders: `name`, `legal_entity`, `nib
 
 ## Phase B - Foundation Hardening & Reliability Remediation
 
-**Status: COMPLETE — GATE: PASS**
+**Status: COMPLETE â€” GATE: PASS**
 
-Resolves the approved P2/P3 findings deferred from Phase A: AUTH-2, SEC-2, AUD-1, SCHED-1, PERF-1, product search (QRY-1), unbounded pagination (VAL-1), nullable product description, factory correctness, identifier collision retry loops, and two broken migration `down()` methods. All fixes follow REPRODUCE → FIX → TARGETED TEST → REGRESSION → FULL VERIFICATION.
+Resolves the approved P2/P3 findings deferred from Phase A: AUTH-2, SEC-2, AUD-1, SCHED-1, PERF-1, product search (QRY-1), unbounded pagination (VAL-1), nullable product description, factory correctness, identifier collision retry loops, and two broken migration `down()` methods. All fixes follow REPRODUCE â†’ FIX â†’ TARGETED TEST â†’ REGRESSION â†’ FULL VERIFICATION.
 
 ### Findings Fixed
 | ID | Severity | Finding | Fix |
@@ -462,90 +462,90 @@ Resolves the approved P2/P3 findings deferred from Phase A: AUTH-2, SEC-2, AUD-1
 - **SQLite suite:** `146 tests / 144 passed / 2 pre-existing skips / 856 assertions / ~38s`.
 - **MySQL 8.4.3 suite (throwaway DB):** `146 / 146 passed / 860 assertions / 0 skipped / ~46s`.
 - **Migration lifecycle (MySQL 8.4.3):** `migrate:fresh` (22 migrations) + full `migrate:rollback` clean with data present.
-- `pint --test` ✅ · `composer audit` ✅ · `route:list` ✅.
+- `pint --test` âœ… Â· `composer audit` âœ… Â· `route:list` âœ….
 
 ### Gate Decision
-**PASS** — all Phase B findings are implemented with targeted tests, the suite is genuinely green on both sqlite and MySQL 8.4 with real command evidence, migrations are reversible with data, and static gates are clean. Full report in `docs/PHASE_B_REMEDIATION_REPORT.md`.
+**PASS** â€” all Phase B findings are implemented with targeted tests, the suite is genuinely green on both sqlite and MySQL 8.4 with real command evidence, migrations are reversible with data, and static gates are clean. Full report in `docs/PHASE_B_REMEDIATION_REPORT.md`.
 
 ---
 
 ## Phase A - Audit Remediation (Security, Data Integrity & Test Discovery)
 
-**Status: COMPLETE — GATE: PASS**
+**Status: COMPLETE â€” GATE: PASS**
 
-Resolves the five confirmed findings from the earlier code audit (AUTH-1, SEC-1, INT-1, INT-2, TEST-1) plus three latent MySQL-only defects surfaced while proving the required MySQL verification. All fixes follow TDD (RED → GREEN), preserve business behavior, and are covered by tests.
+Resolves the five confirmed findings from the earlier code audit (AUTH-1, SEC-1, INT-1, INT-2, TEST-1) plus three latent MySQL-only defects surfaced while proving the required MySQL verification. All fixes follow TDD (RED â†’ GREEN), preserve business behavior, and are covered by tests.
 
 ### Findings Fixed
 | ID | Severity | Finding | Fix |
 |----|----------|---------|-----|
 | TEST-1 | High | `ProductTest` (9 tests) silently skipped: PHPUnit 12 dropped `/** @test */`, so the "green suite" was a false green | Rewrote `ProductTest` with `test_` prefixes; now fully discovered & passing |
-| AUTH-1 | High | `DELETE /api/v1/products/{product}` by a non-superadmin returned **200** (policy never enforced) | `ProductController::destroy` calls `$this->authorize('delete', $product)` → 403; test added |
+| AUTH-1 | High | `DELETE /api/v1/products/{product}` by a non-superadmin returned **200** (policy never enforced) | `ProductController::destroy` calls `$this->authorize('delete', $product)` â†’ 403; test added |
 | SEC-1 | Medium | Payment proofs were stored with a guessable public path in `storage/app/public` and the URL returned in `proof_file_url` | Stored on the private `documents` disk; `proof_file_url` holds the private path; added guarded `GET /payments/{payment}/proof` (200/401/403/404) |
-| INT-1 | Medium | Concurrent BAST signing could create duplicate invoices per order | New unique index `invoices_order_unique` on `invoices.order_id` (migration `2026_08_15_add_unique_invoice_per_order.php`) + `lockForUpdate()` on the order row in `BastController::sign`; tests: re-sign → 422 / exactly one invoice / DB rejects duplicates |
+| INT-1 | Medium | Concurrent BAST signing could create duplicate invoices per order | New unique index `invoices_order_unique` on `invoices.order_id` (migration `2026_08_15_add_unique_invoice_per_order.php`) + `lockForUpdate()` on the order row in `BastController::sign`; tests: re-sign â†’ 422 / exactly one invoice / DB rejects duplicates |
 | INT-2 | Medium | `orders.top_days` CHECK (`> 0`) silently rejected `IMMEDIATE` (0-day) payment terms at the DB level | Relaxed to `>= 0` on MySQL/PostgreSQL (migration `2026_08_15_relax_orders_top_days_check.php`); tests: top_days=0 persists, IMMEDIATE sets due_date = issued_date |
-| INT-3* | High | `orders.rfq_id` UNIQUE index declared in the create migration is **never emitted** by Laravel when `constrained()` is chained → one-order-per-RFQ invariant unenforced at the DB level on MySQL | New migration `2026_08_15_add_unique_index_on_orders_rfq_id.php` (idempotent, both engines); MySQL direct-insert + doctrine tests now pass |
+| INT-3* | High | `orders.rfq_id` UNIQUE index declared in the create migration is **never emitted** by Laravel when `constrained()` is chained â†’ one-order-per-RFQ invariant unenforced at the DB level on MySQL | New migration `2026_08_15_add_unique_index_on_orders_rfq_id.php` (idempotent, both engines); MySQL direct-insert + doctrine tests now pass |
 | * | Medium | `test_orders_table_has_unique_index_on_rfq_id` errored on MySQL: `getDoctrineSchemaManager` removed in Laravel 13 | Rewritten with `Schema::getIndexes()` (runs on sqlite AND MySQL, skip removed) |
 | * | Medium | Overdue-invoice test data set `due_date < issued_date`, violating `invoices_due_after_issued` on MySQL | Test now backdates `issued_date` 40 days; command + assertions unchanged |
 
 \* Discovered during the mandated MySQL 8.4 verification; fixed because they block a clean MySQL run and are the same integrity class the audit targets.
 
 ### Verification Evidence (real command output)
-- **SQLite suite (default phpunit.xml):** `vendor/bin/phpunit` → **118 tests / 116 passed / 2 skipped / 690 assertions / ~21s**. The 2 skips are the pre-existing SQLite-only concurrency tests (`OrderTest:297`, `OrderTest:358`); `OrderTest:340` previously skipped now runs on sqlite too.
-- **MySQL 8.4.3 suite (throwaway `pengadaan_barang_ajm_test` DB):** **118 tests / 118 passed / 694 assertions / ~22s — 0 skipped** (the SQLite-only tests execute and pass on MySQL).
-- `php artisan migrate:fresh --seed` ✅ on MySQL 8.4.3 (all 18 migrations incl. the 3 new ones).
-- Direct MySQL checks ✅: `invoices_order_unique` present and enforced (duplicate → 1062), `orders_top_days_non_negative (top_days >= 0)` replaces `orders_top_days_positive`, `orders_rfq_id_unique` present and enforced.
-- `vendor/bin/pint --test` ✅ on all touched files.
-- `php artisan route:list` ✅ shows `api/v1/payments/{payment}/proof`.
-- `composer audit` ✅ no advisories.
+- **SQLite suite (default phpunit.xml):** `vendor/bin/phpunit` â†’ **118 tests / 116 passed / 2 skipped / 690 assertions / ~21s**. The 2 skips are the pre-existing SQLite-only concurrency tests (`OrderTest:297`, `OrderTest:358`); `OrderTest:340` previously skipped now runs on sqlite too.
+- **MySQL 8.4.3 suite (throwaway `pengadaan_barang_ajm_test` DB):** **118 tests / 118 passed / 694 assertions / ~22s â€” 0 skipped** (the SQLite-only tests execute and pass on MySQL).
+- `php artisan migrate:fresh --seed` âœ… on MySQL 8.4.3 (all 18 migrations incl. the 3 new ones).
+- Direct MySQL checks âœ…: `invoices_order_unique` present and enforced (duplicate â†’ 1062), `orders_top_days_non_negative (top_days >= 0)` replaces `orders_top_days_positive`, `orders_rfq_id_unique` present and enforced.
+- `vendor/bin/pint --test` âœ… on all touched files.
+- `php artisan route:list` âœ… shows `api/v1/payments/{payment}/proof`.
+- `composer audit` âœ… no advisories.
 
 ### Remaining Findings (deferred, not fixed in Phase A)
 See the report for the full P2/P3 inventory (query indexing QRY-1, validation VAL-1, stock INT, overpayment cap, float `(float)` cast, lax status transitions, tax-rate snapshots, AUTH-2 login throttle/token expiry, SEC-2 seeder password, AUD-1 audit gaps, scheduler transaction size, missing indexes, .env defaults; P3 items). These are intentionally left for Phase B / Module 9 to avoid scope creep.
 
 ### Gate Decision
-**PASS** — all Phase A fixes are implemented, the previously-false-green suite is now genuinely green on both sqlite and MySQL 8.4 with real command evidence, migrations are reversible, no data-destroying operations, and business behavior is preserved. Module 9 / Phase B may proceed.
+**PASS** â€” all Phase A fixes are implemented, the previously-false-green suite is now genuinely green on both sqlite and MySQL 8.4 with real command evidence, migrations are reversible, no data-destroying operations, and business behavior is preserved. Module 9 / Phase B may proceed.
 
 ---
 
-## Phase 3C.5 — Public Catalog Discovery (Search / Filter / Sort)
+## Phase 3C.5 â€” Public Catalog Discovery (Search / Filter / Sort)
 
-**Status: GATE A COMPLETE — APPROVED 2026-09-20. Backend discovery core implemented and fully verified (SQLite + MySQL 8.4, Pint, diff check, initial-HTML SEO delivery). GATE B (frontend toolbar) awaits separate authorization.**
+**Status: GATE A COMPLETE â€” APPROVED 2026-09-20. Backend discovery core implemented and fully verified (SQLite + MySQL 8.4, Pint, diff check, initial-HTML SEO delivery). GATE B (frontend toolbar) awaits separate authorization.**
 
 Master plan: `docs/superpowers/plans/2026-09-01-3c5-catalog-discovery.md`
 
 ### Implemented (GATE A)
-- **Search** (`?q=` — partial, case-insensitive on `title` OR `sku`; description intentionally NOT searchable)
-- **Filter** (`?sni=1`, `?tkdn_min=<0-100 clamped>`, `?availability=1` — stock > 0)
+- **Search** (`?q=` â€” partial, case-insensitive on `title` OR `sku`; description intentionally NOT searchable)
+- **Filter** (`?sni=1`, `?tkdn_min=<0-100 clamped>`, `?availability=1` â€” stock > 0)
 - **Sort** (strict allowlist via `App\Enums\CatalogSort`: `default`, `price_asc`, `price_desc`, `tkdn_desc`, `newest`; every non-default sort carries an `id` tie-break; `tkdn_desc` puts NULL last, known values incl. 0 before NULL, via `(tkdn_percentage IS NULL), tkdn_percentage DESC`)
 - URL is the source of truth; Back/Forward supported; discovery change resets `page` to 1; invalid/garbage/array-flooded params are ignored (never 500).
 - `pagination.baseUrl` preserves discovery params (page excluded); `hasActiveDiscovery` true on any discovery-active state including `page>1`.
 - Public payload allowlist remains **exactly** `{id, sku, title, description, price, tkdn, hasSni, warrantyInfo, available}`; raw `stock` never serialized; `/api/v1/products` + `ProductResource` untouched.
-- **SEO delivery:** initial HTML carries `<meta name="robots" content="noindex,follow">` for discovery-active URLs; production emits canonical + `og:url` → clean `/katalog` exactly once; clean `/katalog` indexable. Server-rendered in `app.blade.php` (no SSR).
+- **SEO delivery:** initial HTML carries `<meta name="robots" content="noindex,follow">` for discovery-active URLs; production emits canonical + `og:url` â†’ clean `/katalog` exactly once; clean `/katalog` indexable. Server-rendered in `app.blade.php` (no SSR).
 
 ### Key Files Created/Modified
 - `app/Enums/CatalogSort.php` (new), `app/Models/Product.php` (scopes), `app/Http/Controllers/CatalogController.php` (`normalizeDiscovery()`, `paginationBaseUrl()`, `hasActiveDiscovery`, SEO props)
-- `resources/views/app.blade.php` (server-side robots/canonical/og:url), `resources/js/Pages/Catalog.vue` (props kept; client-side SEO tags removed — single server-side source of truth)
+- `resources/views/app.blade.php` (server-side robots/canonical/og:url), `resources/js/Pages/Catalog.vue` (props kept; client-side SEO tags removed â€” single server-side source of truth)
 - `tests/Unit/CatalogSortTest.php` (8), `tests/Feature/Web/CatalogDiscoveryTest.php` (~35, incl. initial-HTML SEO delivery tests)
 
 ### Verification evidence (real output)
-- SQLite suite ✅ **613 tests / 600 passed / 13 skipped / 2637 assertions**
-- MySQL 8.4 suite ✅ **613 / 613 passed / 2674 assertions / 0 skipped**
-- `pint --test` ✅ · `git diff --check` ✅ · raw initial-HTML SEO contract verified (robots/noindex + canonical/og:url exactly once, production-gated)
-- EXPLAIN (dev DB, 13 rows): documentational — structure/plan correctness only; no index migration (per repo policy); migration candidates noted in plan §Query/performance.
+- SQLite suite âœ… **613 tests / 600 passed / 13 skipped / 2637 assertions**
+- MySQL 8.4 suite âœ… **613 / 613 passed / 2674 assertions / 0 skipped**
+- `pint --test` âœ… Â· `git diff --check` âœ… Â· raw initial-HTML SEO contract verified (robots/noindex + canonical/og:url exactly once, production-gated)
+- EXPLAIN (dev DB, 13 rows): documentational â€” structure/plan correctness only; no index migration (per repo policy); migration candidates noted in plan Â§Query/performance.
 
 ### Explicit decisions (locked)
 - **Category is DEFERRED BY DESIGN, not a missing implementation.** Not in 3C.5 scope; no schema/migration/model/UI.
-- **Existing `/api/v1/products` contract must not be silently broken** — 3C.5 touches only the web `/katalog` path.
+- **Existing `/api/v1/products` contract must not be silently broken** â€” 3C.5 touches only the web `/katalog` path.
 - No SSR; no speculative index migration; no middleware/service; product-detail (3C.6), Cara Order (3C.7), security hardening incl. the public API internal-field leak (3C.8) remain out of scope.
 
 ### GATE plan (remaining)
-- **GATE B — Frontend:** discovery toolbar (search/filter/sort), `Pagination` param-preservation, active-summary/clear, EmptyState discovery copy, responsive + a11y. Not started.
-- **GATE C — Integration:** E2E browser, EXPLAIN/query-shape verification, payload re-audit, SEO check, anti-slop/design pass, full SQLite + MySQL regression + Pint → verdict → checkpoint commit.
+- **GATE B â€” Frontend:** discovery toolbar (search/filter/sort), `Pagination` param-preservation, active-summary/clear, EmptyState discovery copy, responsive + a11y. Not started.
+- **GATE C â€” Integration:** E2E browser, EXPLAIN/query-shape verification, payload re-audit, SEO check, anti-slop/design pass, full SQLite + MySQL regression + Pint â†’ verdict â†’ checkpoint commit.
 
 ---
 
-## Phase 3C.6 — Public Product Detail
+## Phase 3C.6 â€” Public Product Detail
 
-**Status: COMPLETE — VALIDATED AND HUMAN-APPROVED 2026-10-01. Implementation locked; SQLite + MySQL 8.4 green; browser, accessibility, responsive and SEO validation passed; desktop visual review approved. COMMITTED as `205d1c8`; documentation status finalized in `6739077`; NOT PUSHED.**
+**Status: COMPLETE â€” VALIDATED AND HUMAN-APPROVED 2026-10-01. Implementation locked; SQLite + MySQL 8.4 green; browser, accessibility, responsive and SEO validation passed; desktop visual review approved. COMMITTED as `205d1c8`; documentation status finalized in `6739077`; NOT PUSHED.**
 
 Master plan: `docs/superpowers/plans/2026-10-01-3c6-product-detail.md`
 
@@ -553,12 +553,12 @@ Master plan: `docs/superpowers/plans/2026-10-01-3c6-product-detail.md`
 Planning, gate reconciliation and scope locking completed before implementation. The identifier, authorization boundary, public payload, case/canonical strategy, SEO guarantees and TKDN/SNI split were each locked explicitly; deviations required reporting back rather than unilateral change.
 
 ### Locked SKU route
-- `GET /produk/{sku}` → `produk.show` → `App\Http\Controllers\ProductDetailController::show`.
-- **Public identifier is the SKU** — not the slug, not the UUID. The SKU was already in the 3C.5 catalog payload allowlist, so the card became navigational with **no payload change and no slug exposure**.
-- **Non-canonical SKU casing returns 404**, never a redirect. Verified engine-agnostically: `products.sku` is `utf8mb4_unicode_ci` (case-**insensitive**) on MySQL 8.4.3, so a naive `where('sku', …)` would wrongly return 200. Enforcement is the portable PHP check `$product->sku !== $sku` — no `COLLATE`, no `LOWER()`, no functional index, no collation migration.
-- A genuinely **lowercase persisted SKU resolves** (`srv-0001` → `200`).
+- `GET /produk/{sku}` â†’ `produk.show` â†’ `App\Http\Controllers\ProductDetailController::show`.
+- **Public identifier is the SKU** â€” not the slug, not the UUID. The SKU was already in the 3C.5 catalog payload allowlist, so the card became navigational with **no payload change and no slug exposure**.
+- **Non-canonical SKU casing returns 404**, never a redirect. Verified engine-agnostically: `products.sku` is `utf8mb4_unicode_ci` (case-**insensitive**) on MySQL 8.4.3, so a naive `where('sku', â€¦)` would wrongly return 200. Enforcement is the portable PHP check `$product->sku !== $sku` â€” no `COLLATE`, no `LOWER()`, no functional index, no collation migration.
+- A genuinely **lowercase persisted SKU resolves** (`srv-0001` â†’ `200`).
 - **Authorization is public and locked:** no auth middleware, no `ProductPolicy` invocation, no new authorization framework. `ProductPolicy::view` is not guest-safe and was deliberately not used.
-- Not-found is the **plain Laravel 404** — no custom 404 system was introduced.
+- Not-found is the **plain Laravel 404** â€” no custom 404 system was introduced.
 
 ### Six-field public projection
 A dedicated inline projection; `ProductResource` is **not** reused. Exactly:
@@ -572,38 +572,56 @@ A dedicated inline projection; `ProductResource` is **not** reused. Exactly:
 ### TKDN/SNI exclusion
 `tkdn_percentage` and `is_sni` are **excluded from Product Detail**. The 3C.5 catalog card's display-only TKDN/SNI presence markers are **untouched**. Reintroduction requires evidence-based justification and legal/regulatory review. **`ProductCertification` was NOT created.**
 
-### Canonical / SEO contract (authoritative — no crawler-complete claim)
+### Canonical / SEO contract (authoritative â€” no crawler-complete claim)
 1. No `noindex` on Product Detail.
 2. Exactly one canonical in production.
 3. Exactly one matching `og:url` in production.
-4. Canonical derived from the **persisted SKU** (`route('produk.show', ['sku' => $product->sku], absolute: false)` — the parameter is passed explicitly because implicit resolution would emit the UUID route key).
+4. Canonical derived from the **persisted SKU** (`route('produk.show', ['sku' => $product->sku], absolute: false)` â€” the parameter is passed explicitly because implicit resolution would emit the UUID route key).
 5. Non-production emits neither canonical nor `og:url` (gated on production env **and** `APP_PUBLIC_URL`).
-6. **F2 inherited and NOT REMEDIATED** — Blade-level canonical/`og:url` stay tied to the initial shell across client-side Inertia navigation, consistent with the locked SSR-disabled architecture.
+6. **F2 inherited and NOT REMEDIATED** â€” Blade-level canonical/`og:url` stay tied to the initial shell across client-side Inertia navigation, consistent with the locked SSR-disabled architecture.
 
-Guarantees 1–5 were verified against a real production-mode server serving the real initial document.
+Guarantees 1â€“5 were verified against a real production-mode server serving the real initial document.
 
 ### Validation results (final baselines, not invented)
-- SQLite suite: **649 total / 636 passed / 13 skipped / 0 failed** — 2877 assertions.
-- MySQL 8.4.3 suite: **649 total / 649 passed / 0 failed** — 2914 assertions.
+- SQLite suite: **649 total / 636 passed / 13 skipped / 0 failed** â€” 2877 assertions.
+- MySQL 8.4.3 suite: **649 total / 649 passed / 0 failed** â€” 2914 assertions.
 - Focused pre-regression suite (ProductDetail + Catalog + CatalogDiscovery): **84 tests / 779 assertions / 0 failed**.
 - Focused Product Detail cross-engine subset on MySQL: **12/12 passed**.
 - Delta from the 620-test baseline is **+29**, exactly matching the 29-test `ProductDetailTest`.
-- `pint` passed · `git diff --check` clean · `npm run build` passed (563 modules; only the pre-existing optional `fontaine` warning).
+- `pint` passed Â· `git diff --check` clean Â· `npm run build` passed (563 modules; only the pre-existing optional `fontaine` warning).
 - HTTP status matrix **13/13** with no redirects; production and non-production SEO shell both verified.
 
 ### Browser / E2E result
-Catalog → detail → back passed with discovery state (`?sort=price_asc&page=2`) preserved and restored on Back. Keyboard-only navigation passed (Tab traversal from the skip link to the card link, then Enter). Skip link functional. Catalog card asserted in the live DOM as exactly one `<article>` + one `<a>` with no nested interactive elements. Mobile **375px** passed with **zero horizontal overflow**. Console clean.
+Catalog â†’ detail â†’ back passed with discovery state (`?sort=price_asc&page=2`) preserved and restored on Back. Keyboard-only navigation passed (Tab traversal from the skip link to the card link, then Enter). Skip link functional. Catalog card asserted in the live DOM as exactly one `<article>` + one `<a>` with no nested interactive elements. Mobile **375px** passed with **zero horizontal overflow**. Console clean.
 
-One test was removed during validation: `test_catalog_emits_the_product_detail_link` asserted against server-rendered raw HTML for a link that only exists after Vue runtime rendering — invalid under the locked no-SSR architecture, not a broken feature. It was replaced by `test_catalog_payload_exposes_the_sku_needed_by_the_detail_link`. Browser/E2E is the authoritative navigation verification layer.
+One test was removed during validation: `test_catalog_emits_the_product_detail_link` asserted against server-rendered raw HTML for a link that only exists after Vue runtime rendering â€” invalid under the locked no-SSR architecture, not a broken feature. It was replaced by `test_catalog_payload_exposes_the_sku_needed_by_the_detail_link`. Browser/E2E is the authoritative navigation verification layer.
 
 ### Visual approval
 The human reviewer **APPROVED** the supplied desktop Product Detail and desktop Catalog screenshots. Browser/mobile visual validation passed independently. **No visual redesign was required or performed.**
 
 ### Scope / out-of-scope summary
-No API changes (`/api/v1/products`, `ProductResource`, API controllers/requests/policies untouched — the public API internal-field leak remains tracked as 3C.8); no migrations or schema changes; no `ProductResource` change; no `ProductPolicy` change; no `app.blade.php` change; no media subsystem; no publication state; no certification subsystem; no SSR; no Module 9 / dashboards / transaction workflows; no rate limiting; no custom 404 system; no shared `formatPrice` extraction; no SKU write-path validation change; no change to 3C.5 catalog behavior.
+No API changes (`/api/v1/products`, `ProductResource`, API controllers/requests/policies untouched â€” the public API internal-field leak remains tracked as 3C.8); no migrations or schema changes; no `ProductResource` change; no `ProductPolicy` change; no `app.blade.php` change; no media subsystem; no publication state; no certification subsystem; no SSR; no Module 9 / dashboards / transaction workflows; no rate limiting; no custom 404 system; no shared `formatPrice` extraction; no SKU write-path validation change; no change to 3C.5 catalog behavior.
 
 ### Known accepted limitations
 SKU mutability can orphan old URLs (no redirect map, SKU should be treated as effectively immutable); the `/` / reserved-character SKU limitation is inherited; SKU write validation remains pre-existing and out of scope; 404 remains plain Laravel; F2 remains inherited; the `fontaine` warning remains pre-existing.
 
 ### Teardown / hygiene
 E2E fixtures lived only in a throwaway SQLite database on a dedicated port and were deleted. The MySQL **development** database was never written to (13 pre-existing rows, none created during 3C.6). `.env`, `config/database.php` and `resources/views/app.blade.php` unmodified. Servers stopped, ports released.
+## PHASE 3C.7 — Cara Order (Informational Page)
+
+**Status:** FINALIZED / COMMITTED — NOT PUSHED  
+**Date:** 2026-10-03
+
+### Objective
+Public informational 'Cara Order' page explaining procurement-oriented B2B/B2G engagement; strictly informational with no transaction/RFQ flows.
+
+### Implementation
+- Route GET /cara-order named cara-order.show (closure, public, no middleware).
+- Page esources/js/Pages/CaraOrder.vue (static Inertia Vue) with B2B/B2G boundary-preserving content.
+- Header: 'Cara Order' linked to /cara-order; 'Produk'/'Kontak' unchanged.
+- Tests: 	ests/Feature/Web/CaraOrderTest.php (3 passed, 9 assertions).
+
+### Validation
+Full suite: 652 passed, 13 skipped, 0 failed (2886 assertions). Pint PASS; build PASS. Human visual review (desktop/mobile) APPROVED.
+
+

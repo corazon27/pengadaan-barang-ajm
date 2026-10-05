@@ -1,12 +1,9 @@
-<script setup>
+﻿<script setup>
 import { Link } from '@inertiajs/vue3';
 import { usePage } from '@inertiajs/vue3';
 
 const { props } = usePage();
 
-// GATE A: catalog (3C.4) and Cara Order page (3C.7) routes do not exist yet.
-// These labels render as static, non-interactive placeholders and become real
-// anchor/route links only when their destinations exist. No dead links.
 const navItems = [
     { label: 'Produk' },
     { label: 'Cara Order' },
@@ -16,7 +13,6 @@ const navItems = [
 
 <template>
     <header class="bg-surface">
-        <!-- Structural top frame: navy index bar (navy = structure) -->
         <div class="bg-ink">
             <div
                 class="mx-auto flex h-9 w-full max-w-7xl items-center justify-between px-6 text-inverse sm:px-8 lg:px-10"
@@ -43,15 +39,25 @@ const navItems = [
 
             <ul class="hidden items-center gap-8 md:flex" aria-label="Navigasi utama">
                 <li v-for="item in navItems" :key="item.label">
-                    <span
-                        class="cursor-default text-caption font-medium uppercase tracking-[0.2em] text-ink-soft/60"
-                        :title="`${item.label} — tersedia pada tahap berikutnya`"
-                        tabindex="-1"
+                    <Link
+                        v-if="item.label === 'Cara Order'"
+                        :href="'/cara-order'"
+                        class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-strong focus-visible:ring-offset-2 rounded-brand-sm px-1 py-1"
                     >
                         {{ item.label }}
-                    </span>
+                    </Link>
+                    <template v-else>
+                        <span
+                            class="cursor-default text-caption font-medium uppercase tracking-[0.2em] text-ink-soft/60"
+                            :title="item.label + ' — — tersedia pada tahap berikutnya'"
+                            tabindex="-1"
+                        >
+                            {{ item.label }}
+                        </span>
+                    </template>
                 </li>
             </ul>
         </div>
     </header>
 </template>
+
