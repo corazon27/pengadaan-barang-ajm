@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use App\Http\Resources\Product\ProductResource;
+use App\Http\Resources\Product\PublicProductResource;
 use App\Models\Product;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +52,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product listing retrieved',
-            'data' => ProductResource::collection($products),
+            'data' => PublicProductResource::collection($products),
             'errors' => null,
         ], 200);
     }
@@ -75,7 +76,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product retrieved',
-            'data' => new ProductResource($product),
+            'data' => new PublicProductResource($product),
             'errors' => null,
         ], 200);
     }

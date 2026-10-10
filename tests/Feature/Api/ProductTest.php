@@ -32,6 +32,15 @@ class ProductTest extends TestCase
             ])
             ->assertJsonPath('data.0.sku', 'PHONE-001')
             ->assertJsonCount(1, 'data');
+
+        // Security assertions
+        $product = $response->json('data.0');
+        $allowed = ['id', 'sku', 'title', 'description', 'price', 'warranty_info', 'available'];
+        $this->assertEqualsCanonicalizing($allowed, array_keys($product));
+        $forbidden = ['slug', 'margin_percentage', 'tax_rate_percentage', 'estimated_shipping', 'datasheet_url', 'stock', 'tkdn_percentage', 'is_sni', 'base_price'];
+        foreach ($forbidden as $field) {
+            $this->assertArrayNotHasKey($field, $product);
+        }
     }
 
     public function test_search_matches_substring_in_title_or_sku(): void
@@ -116,11 +125,26 @@ class ProductTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.id', $product->id);
+        $data = $response->json('data');
+        $allowed = ['id', 'sku', 'title', 'description', 'price', 'warranty_info', 'available'];
+        $this->assertEqualsCanonicalizing($allowed, array_keys($data));
+        $forbidden = ['slug', 'margin_percentage', 'tax_rate_percentage', 'estimated_shipping', 'datasheet_url', 'stock', 'tkdn_percentage', 'is_sni', 'base_price'];
+        foreach ($forbidden as $field) {
+            $this->assertArrayNotHasKey($field, $data);
+        }
+        $this->assertIsString($data['price']);
+        $this->assertIsBool($data['available']);
 
         $response = $this->get('/api/v1/products/'.$product->slug);
 
         $response->assertOk()
             ->assertJsonPath('data.id', $product->id);
+        $data = $response->json('data');
+        $this->assertEqualsCanonicalizing($allowed, array_keys($data));
+        foreach ($forbidden as $field) {
+            $this->assertArrayNotHasKey($field, $data);
+        }
+        $this->assertArrayNotHasKey('slug', $data);
     }
 
     public function test_superadmin_can_create_product(): void

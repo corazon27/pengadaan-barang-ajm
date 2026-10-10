@@ -608,7 +608,7 @@ SKU mutability can orphan old URLs (no redirect map, SKU should be treated as ef
 ### Teardown / hygiene
 E2E fixtures lived only in a throwaway SQLite database on a dedicated port and were deleted. The MySQL **development** database was never written to (13 pre-existing rows, none created during 3C.6). `.env`, `config/database.php` and `resources/views/app.blade.php` unmodified. Servers stopped, ports released.## PHASE 3C.7 — Cara Order (Informational Page)
 
-**Status:** FINALIZED / COMMITTED — NOT PUSHED  
+**Status:** FINALIZED / COMMITTED — NOT PUSHED
 **Date:** 2026-10-03
 
 ### Objective
@@ -616,11 +616,12 @@ Public informational 'Cara Order' page explaining procurement-oriented B2B/B2G e
 
 ### Implementation
 - Route GET /cara-order named cara-order.show (closure, public, no middleware).
-- Page esources/js/Pages/CaraOrder.vue (static Inertia Vue) with B2B/B2G boundary-preserving content.
+- Page
+esources/js/Pages/CaraOrder.vue (static Inertia Vue) with B2B/B2G boundary-preserving content.
 - Header: 'Cara Order' linked to /cara-order; 'Produk'/'Kontak' unchanged.
 - Tests: 	ests/Feature/Web/CaraOrderTest.php (3 passed, 9 assertions).
 
 ### Validation
 Full suite: 652 passed, 13 skipped, 0 failed (2886 assertions). Pint PASS; build PASS. Human visual review (desktop/mobile) APPROVED.
 
-
+**Phase 3C.8 — API/Public Data Exposure & Security Surface:** COMPLETE — Gates A/B/C PASS. PublicProductResource added for public reads; controller isolation preserved; HTTP-level security assertions added. API tests 12/12 (77 assertions); web regression 74/74 (636 assertions); full suite 652 (639 passed, 13 skipped, 0 failed), 2919 assertions. Pint/PHP syntax/git diff --check clean. Changes uncommitted (per closeout).
