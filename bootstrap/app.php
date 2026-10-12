@@ -68,6 +68,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Terlalu banyak percobaan. Silakan coba lagi nanti.',
                 'data' => null,
                 'errors' => ['throttle' => ['Terlalu banyak permintaan. Silakan coba lagi setelah batas waktu.']],
-            ], 429);
+            ], 429, $e->getHeaders());
         });
     })->create();

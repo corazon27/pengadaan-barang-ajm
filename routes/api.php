@@ -52,8 +52,8 @@ Route::middleware('auth:sanctum')->group(function () {
 |
 */
 
-Route::get('/products', [ProductController::class, 'index']); // Public index
-Route::get('/products/{product}', [ProductController::class, 'show']); // Public show
+Route::get('/products', [ProductController::class, 'index'])->middleware('throttle:public-api'); // Public index
+Route::get('/products/{product}', [ProductController::class, 'show'])->middleware('throttle:public-api'); // Public show
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);

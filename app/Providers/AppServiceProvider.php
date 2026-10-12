@@ -51,6 +51,19 @@ class AppServiceProvider extends ServiceProvider
             });
         });
 
+        // Rate-limit the resource-intensive public surfaces per client IP.
+        // Separate named buckets for the public web and public API surfaces so
+        // consuming one does not exhaust the other. 60 requests/minute is an
+        // initial engineering setting, not a measured traffic limit. The key is
+        // the resolved client IP ($request->ip()); no forwarded header is trusted.
+        RateLimiter::for('public-web', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        RateLimiter::for('public-api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
         Model::preventLazyLoading(! app()->isProduction());
         Model::preventSilentlyDiscardingAttributes(! app()->isProduction());
         Model::preventAccessingMissingAttributes(! app()->isProduction());

@@ -5,7 +5,8 @@ use App\Http\Controllers\ProductDetailController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/katalog', [CatalogController::class, 'index']);
+Route::get('/katalog', [CatalogController::class, 'index'])
+    ->middleware('throttle:public-web');
 
 // 3C.6 â€” public product detail. `/katalog` is the collection/discovery surface;
 // `/produk/{sku}` is the individual product resource. The identifier is the SKU
@@ -14,6 +15,7 @@ Route::get('/katalog', [CatalogController::class, 'index']);
 // character contract, and the default single-segment pattern already makes a SKU
 // containing "/" unaddressable. Public and LOCKED â€” no middleware, no policy.
 Route::get('/produk/{sku}', [ProductDetailController::class, 'show'])
+    ->middleware('throttle:public-web')
     ->name('produk.show');
 
 Route::get('/cara-order', function () {
