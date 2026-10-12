@@ -625,3 +625,26 @@ esources/js/Pages/CaraOrder.vue (static Inertia Vue) with B2B/B2G boundary-prese
 Full suite: 652 passed, 13 skipped, 0 failed (2886 assertions). Pint PASS; build PASS. Human visual review (desktop/mobile) APPROVED.
 
 **Phase 3C.8 — API/Public Data Exposure & Security Surface:** COMPLETE — Gates A/B/C PASS. PublicProductResource added for public reads; controller isolation preserved; HTTP-level security assertions added. API tests 12/12 (77 assertions); web regression 74/74 (636 assertions); full suite 652 (639 passed, 13 skipped, 0 failed), 2919 assertions. Pint/PHP syntax/git diff --check clean. Changes uncommitted (per closeout).
+
+## Public Surface Rate-Limiting Follow-up
+
+**Status:** LOCAL COMPLETE / COMMITTED - NOT PUSHED
+**Date:** 2026-10-12
+
+### Objective
+Rate-limit the four public product surfaces (web and API) per client IP while preserving the existing public contract.
+
+### Implementation
+- Named limiters `public-web` and `public-api`: 60 requests/minute keyed by `$request->ip()`, with separate web and API buckets.
+- Routes: `/katalog` and `/produk/{sku}` use `throttle:public-web`; `/api/v1/products` and `/api/v1/products/{product}` use `throttle:public-api`.
+- `/`, `/cara-order`, the existing `login` limiter, and authenticated and mutation routes are unchanged; the 429 envelope is preserved and the framework throttle headers are forwarded.
+- No trusted-proxy configuration introduced.
+
+### Validation
+Focused rate-limit tests 12 passed / 692 assertions; regression 114 passed / 966 assertions; SQLite full suite 664 (651 passed, 13 skipped, 0 failed); MySQL 8.4.3 full suite 664 / 664 / 0 skipped / 0 failed (3,648 assertions). Pint, PHP syntax and `git diff --check` pass.
+
+### Commit
+Implementation committed locally as `e03d7ee`; this documentation recorded in a follow-up commit. NOT PUSHED.
+
+### Open before production
+Rumahweb client-IP (`REMOTE_ADDR` vs proxy) confirmation and any trusted-proxy decision; a safe production route-cache refresh mechanism; the 60/minute threshold remains provisional pending observed traffic. Deployment and production activation are NOT complete.
