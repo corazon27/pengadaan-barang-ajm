@@ -1,5 +1,16 @@
 <?php
 
+use App\Http\Controllers\Account\HomeController as AccountHomeController;
+use App\Http\Controllers\Admin\AccountReviewController;
+use App\Http\Controllers\Admin\B2gEvidenceController;
+use App\Http\Controllers\Auth\AccountStatusController;
+use App\Http\Controllers\Auth\ApplicationEvidenceController;
+use App\Http\Controllers\Auth\ApplicationResubmitController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ConfirmPasswordController;
+use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\PasswordResetController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\ProductDetailController;
 use Illuminate\Support\Facades\Route;
@@ -36,4 +47,89 @@ Route::get('/', function () {
     return Inertia::render('Home', $canonicalUrl !== null
         ? ['canonicalUrl' => $canonicalUrl]
         : []);
+})->name('home');
+
+// --- Authentication (guest) -------------------------------------------------
+Route::middleware('guest')->group(function (): void {
+    Route::get('/masuk', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('/masuk', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:login')
+        ->name('login.store');
+
+    Route::get('/daftar', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/daftar', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:register')
+        ->name('register.store');
+
+    Route::get('/lupa-kata-sandi', [PasswordResetController::class, 'request'])->name('password.request');
+    Route::post('/lupa-kata-sandi', [PasswordResetController::class, 'email'])
+        ->middleware('throttle:password.email')
+        ->name('password.email');
+    Route::get('/atur-ulang-kata-sandi/{token}', [PasswordResetController::class, 'reset'])->name('password.reset');
+    Route::post('/atur-ulang-kata-sandi', [PasswordResetController::class, 'store'])
+        ->middleware('throttle:password.reset')
+        ->name('password.store');
 });
+
+// --- Signed, expiring guest links (no session, no token) --------------------
+Route::middleware('signed')->group(function (): void {
+    Route::get('/verifikasi-email/{user}/{hash}', [EmailVerificationController::class, 'show'])
+        ->name('verification.show');
+    Route::post('/verifikasi-email/{user}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->name('verification.verify');
+
+    Route::get('/status-akun/{user}', [AccountStatusController::class, 'show'])
+        ->middleware('throttle:account-status')
+        ->name('account.status');
+
+    Route::get('/pengajuan-ulang/{user}', [ApplicationResubmitController::class, 'show'])->name('resubmit.show');
+    Route::post('/pengajuan-ulang/{user}', [ApplicationResubmitController::class, 'store'])
+        ->middleware('throttle:resubmit')
+        ->name('resubmit.store');
+
+    Route::get('/bukti-b2g/{user}', [ApplicationEvidenceController::class, 'show'])->name('application.evidence.show');
+    Route::post('/bukti-b2g/{user}', [ApplicationEvidenceController::class, 'store'])
+        ->middleware('throttle:resubmit')
+        ->name('application.evidence.store');
+});
+
+Route::post('/verifikasi-email/kirim-ulang', [EmailVerificationController::class, 'resend'])
+    ->middleware('throttle:email-verification')
+    ->name('verification.resend');
+
+// --- Authenticated account --------------------------------------------------
+Route::middleware(['auth', 'account.active'])->group(function (): void {
+    Route::get('/akun', [AccountHomeController::class, 'index'])->name('account.home');
+    Route::post('/keluar', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    Route::get('/konfirmasi-kata-sandi', [ConfirmPasswordController::class, 'show'])->name('password.confirm');
+    Route::post('/konfirmasi-kata-sandi', [ConfirmPasswordController::class, 'store'])->name('password.confirm.store');
+});
+
+// --- Admin (SUPERADMIN, authorized via UserPolicy) --------------------------
+Route::middleware(['auth', 'account.active'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function (): void {
+        Route::get('/akun', [AccountReviewController::class, 'index'])->name('accounts.index');
+        Route::get('/akun/{account}', [AccountReviewController::class, 'show'])->name('accounts.show');
+
+        Route::post('/akun/{account}/setujui', [AccountReviewController::class, 'approve'])
+            ->middleware('password.confirm')
+            ->name('accounts.approve');
+        Route::post('/akun/{account}/tolak', [AccountReviewController::class, 'reject'])
+            ->middleware('password.confirm')
+            ->name('accounts.reject');
+        Route::post('/akun/{account}/tangguhkan', [AccountReviewController::class, 'suspend'])
+            ->middleware('password.confirm')
+            ->name('accounts.suspend');
+        Route::post('/akun/{account}/aktifkan', [AccountReviewController::class, 'reactivate'])
+            ->middleware('password.confirm')
+            ->name('accounts.reactivate');
+
+        Route::get('/bukti/{submission}/unduh', [B2gEvidenceController::class, 'download'])
+            ->name('evidence.download');
+        Route::post('/bukti/{submission}/tinjau', [AccountReviewController::class, 'reviewEvidence'])
+            ->middleware('password.confirm')
+            ->name('evidence.review');
+    });

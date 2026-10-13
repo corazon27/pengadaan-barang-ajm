@@ -648,3 +648,57 @@ Implementation committed locally as `e03d7ee`; this documentation recorded in a 
 
 ### Open before production
 Rumahweb client-IP (`REMOTE_ADDR` vs proxy) confirmation and any trusted-proxy decision; a safe production route-cache refresh mechanism; the 60/minute threshold remains provisional pending observed traffic. Deployment and production activation are NOT complete.
+
+## PHASE 4 - Account Access & Approval Lifecycle
+
+**Status:** LOCAL COMPLETE / NOT COMMITTED
+**Date:** 2026-10-13
+
+### Objective
+Add self-service registration, email verification, an explicit account lifecycle, Inertia session auth, SUPERADMIN account review, and B2G evidence capture, without changing the existing Sanctum API contract or roles.
+
+### Implementation
+- Schema: users lifecycle columns (`status` NOT NULL default PENDING with NULL-sentinel grandfathering; `status_reason`, `status_changed_at`, `requested_role`) + append-only `b2g_evidence_submissions` (`unique(user_id, version)`).
+- Services: `AccountLifecycleService` (register/approve/reject/suspend/reactivate/markEmailVerified/resubmit; strict audit in-transaction; post-commit notifications), `B2gEvidenceService` (versioned submit/review/recordAccess), `AuditLogger::strictLog()` + snapshot guard.
+- HTTP: guest/signed auth routes, authenticated account routes, SUPERADMIN admin routes (policy + `password.confirm`); `account.active` middleware enforced on web and API; AuthController denies non-ACTIVE API logins.
+- UI: 13 Inertia pages + `AccountLayout`; CLI `ajm:create-superadmin`.
+- Tests: 52 new tests (registration, session auth, verification, password reset, resubmit, account-active middleware, admin review, suspend/reactivate, B2G review/download, superadmin protection, lifecycle service incl. strict-audit rollback, CLI command, migration defaults).
+
+### Validation
+`php artisan test` full suite: 716 total / 703 passed / 13 skipped / 0 failed (3,805 assertions). `pint --test` PASS; PHP syntax PASS; `npm run build` PASS; `git diff --check` clean. MySQL NOT exercised this pass.
+
+### Open before production (blockers)
+- First-SUPERADMIN provisioning path on Rumahweb Shared Hosting Small is unconfirmed (no SSH assumed).
+- SMTP/authenticated sender unverified -> registration/verification/reset/status/admin mail is non-functional in production until configured.
+- B2G activation blocked until the permitted evidence catalogue, mandatory NPWP/work-unit policy, and evidence retention/disposal rule are approved.
+- Migration rollout needs a maintenance window, backup, and verified write-quiescence (MySQL DDL is not transactional).
+- Secure cookies/HTTPS + verified trusted-proxy config; MFA for SUPERADMIN; explicit Sanctum token-lifetime/rotation decision.
+
+## PHASE 4 - Account Access & Approval Lifecycle (Pre-Commit Security Review)
+
+**Status:** REVIEWED / READY FOR COMMIT REVIEW / NOT COMMITTED
+**Date:** 2026-10-13
+
+### Objective
+Independent pre-commit security and correctness review of the Account Access & Approval change set (tracked diff plus all new files) before any commit.
+
+### Findings corrected
+- `NewAccountApplicationNotification` threw while rendering for a `BUYER_B2G`-requesting applicant (backed-enum concatenation) and the failure was swallowed by the best-effort wrapper, so administrators received no new-application mail. Fixed to `?->value`.
+- Broken action links in two mail templates (`url('/admin/accounts')`, `url('/login')`) replaced with `route('admin.accounts.index')` and `route('login')`.
+- `AccountLifecycleService::approve()` audit `previous_state` now records `requested_role`.
+- `throttle:account-status` (previously defined but unused) applied to `GET /status-akun/{user}`.
+- Added `tests/Feature/Notifications/AccountMailTest.php` regression coverage.
+
+### Reviewed and confirmed sound (no change)
+- Signed GET verification performs no state change; the signed POST validates signature/expiry, user identity, and current-email binding without creating a session or token.
+- `status` is the sole runtime gate; `email_verified_at` is an approval prerequisite, never an authorization gate; registration forces `BUYER_B2B`; `role`/`status`/`requested_role` are not mass-assignable.
+- `account.active` enforced on authenticated web and every `auth:sanctum` group (closes pre-suspension tokens); admin mutations behind `password.confirm`; self-approval/suspension denied by policy and service.
+- Last-active-superadmin and B2G version allocation serialize via `SELECT ... FOR UPDATE` on MySQL, with `unique(user_id, version)` as backstop; strict audit shares the state-change transaction so an audit failure rolls the change back.
+- Evidence on the private `documents` disk (no public URL); download is authorized and strictly audited before bytes are served; enum-driven MIME allowlist (`mimes:pdf,jpg,jpeg,png`, max 5 MB); safe random stored filenames.
+- Migration grandfathers legacy rows as ACTIVE without fabricating `email_verified_at`; new rows default PENDING; the NULL-sentinel backfill is retry-safe.
+
+### Validation
+SQLite full suite 719 total / 706 passed / 13 skipped / 0 failed (3,810 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 719 / 719 passed / 0 skipped (3,847 assertions). `pint` PASS; PHP syntax 53/53; `npm run build` PASS; `git diff --check` clean.
+
+### Remaining limitations (unchanged blockers)
+SMTP deliverability unverified; first-SUPERADMIN provisioning path on Rumahweb Shared Hosting Small unconfirmed; B2G evidence policy/retention pending approval; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy config; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision; registration password minimum is 8 for public self-service while privileged CLI provisioning requires 12 — a deliberate policy difference (F5), now documented in code, not an oversight.

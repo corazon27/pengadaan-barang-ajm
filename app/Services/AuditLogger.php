@@ -57,7 +57,7 @@ class AuditLogger
         BastDocument::class => ['status', 'signed_at', 'signed_date', 'notes'],
         Invoice::class => ['status', 'amount_due', 'grand_total', 'paid_at', 'subtotal', 'ppn_amount', 'tax_calculation_version'],
         Payment::class => ['status', 'amount', 'verified_at', 'rejection_reason'],
-        User::class => ['full_name', 'email', 'company_name', 'role'],
+        User::class => ['full_name', 'email', 'company_name', 'role', 'status', 'requested_role'],
         Product::class => ['sku', 'title', 'base_price', 'stock', 'is_sni'],
         RegulatoryReference::class => ['reference_code', 'title', 'effective_from', 'effective_to', 'source_version', 'status'],
         PSERegistration::class => [
@@ -185,6 +185,34 @@ class AuditLogger
     }
 
     /**
+     * Persist a MANDATORY audit entry whose failure must abort the caller's
+     * transaction. Unlike {@see self::log()} this performs no internal
+     * transaction and does not swallow exceptions: if the row cannot be
+     * written, the Throwable propagates so the enclosing DB::transaction rolls
+     * back the corresponding critical state change.
+     *
+     * Callers MUST invoke this inside the same transaction that mutates the
+     * entity. Never pass passwords, tokens, raw NPWP, or document contents in
+     * the state arrays.
+     */
+    public function strictLog(
+        ?User $user,
+        AuditAction $action,
+        ?Model $entity = null,
+        ?array $previousState = null,
+        ?array $newState = null,
+    ): AuditLog {
+        return AuditLog::create([
+            'user_id' => $user?->id,
+            'action' => $action->value,
+            'entity_type' => $entity ? class_basename($entity) : null,
+            'entity_id' => $entity?->getKey(),
+            'previous_state' => $previousState ?? ($entity ? $this->snapshot($entity) : []),
+            'new_state' => $newState ?? ($entity ? $this->snapshot($entity) : []),
+        ]);
+    }
+
+    /**
      * Capture a snapshot of the entity's auditable state fields.
      *
      * @return array<string, mixed>
@@ -192,9 +220,19 @@ class AuditLogger
     public function snapshot(Model $entity): array
     {
         $fields = self::STATE_FIELDS[$entity::class] ?? [];
+        $attributes = $entity->getAttributes();
 
         $snapshot = [];
         foreach ($fields as $field) {
+            // In strict mode (preventAccessingMissingAttributes) reading an
+            // attribute the model did not load throws. Treat an absent key as a
+            // genuine null so auditing never fails on a partially loaded model.
+            if (! array_key_exists($field, $attributes)) {
+                $snapshot[$field] = null;
+
+                continue;
+            }
+
             $value = $entity->getAttribute($field);
 
             if ($value instanceof \BackedEnum) {

@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/profile', [ProfileController::class, 'update']);
@@ -55,7 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('/products', [ProductController::class, 'index'])->middleware('throttle:public-api'); // Public index
 Route::get('/products/{product}', [ProductController::class, 'show'])->middleware('throttle:public-api'); // Public show
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{product}', [ProductController::class, 'update']);
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
@@ -67,7 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/rfqs', [RfqController::class, 'index']);
     Route::post('/rfqs', [RfqController::class, 'store']);
     Route::get('/rfqs/{rfq}', [RfqController::class, 'show']);
@@ -81,7 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
@@ -97,7 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
     Route::patch('/invoices/{invoice}/payment-status', [InvoiceController::class, 'updatePaymentStatus']);
@@ -110,7 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/rfqs/{rfq}/quotation.pdf', [DocumentController::class, 'quotationPdf']);
     Route::get('/orders/{order}/bast.pdf', [DocumentController::class, 'bastPdf']);
     Route::get('/invoices/{invoice}/pdf', [DocumentController::class, 'invoicePdf']);
@@ -122,7 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::post('/invoices/{invoice}/payments', [PaymentController::class, 'store']);
     Route::get('/payments', [PaymentController::class, 'index']);
     Route::get('/payments/{payment}/proof', [PaymentController::class, 'downloadProof']);
@@ -135,7 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll']);
@@ -147,7 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/pse/registrations', [PseRegistrationController::class, 'index']);
     Route::post('/pse/registrations', [PseRegistrationController::class, 'store']);
     Route::get('/pse/registrations/{registration}', [PseRegistrationController::class, 'show']);
@@ -165,7 +165,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/dsr', [DataSubjectRequestController::class, 'index']);
     Route::post('/dsr', [DataSubjectRequestController::class, 'store']);
     Route::get('/dsr/{dsr}', [DataSubjectRequestController::class, 'show']);
@@ -191,7 +191,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'dashboard']);
 });
@@ -202,7 +202,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/incidents', [IncidentController::class, 'index']);
     Route::post('/incidents', [IncidentController::class, 'store']);
     Route::get('/incidents/{incident}', [IncidentController::class, 'show']);
@@ -227,7 +227,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/legal-functions', [LegalFunctionController::class, 'index']);
     Route::post('/legal-functions', [LegalFunctionController::class, 'store']);
     Route::get('/legal-functions/{legalFunction}', [LegalFunctionController::class, 'show']);
@@ -245,7 +245,7 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/processor-agreements', [ProcessorAgreementController::class, 'index']);
     Route::post('/processor-agreements', [ProcessorAgreementController::class, 'store']);
     Route::get('/processor-agreements/{agreement}', [ProcessorAgreementController::class, 'show']);

@@ -35,10 +35,30 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        return [
+        $shared = [
             ...parent::share($request),
             'appName' => config('app.name'),
             'companyName' => config('company.name'),
+            'flash' => [
+                'status' => fn (): ?string => $request->session()->get('status'),
+            ],
         ];
+
+        // Only expose the auth context when a user is actually authenticated, so
+        // anonymous public pages never carry internal account props.
+        $user = $request->user();
+        if ($user !== null) {
+            $shared['auth'] = [
+                'user' => [
+                    'id' => $user->getKey(),
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'role' => $user->role->value,
+                    'status' => $user->status->value,
+                ],
+            ];
+        }
+
+        return $shared;
     }
 }

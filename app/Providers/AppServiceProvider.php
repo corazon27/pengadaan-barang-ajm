@@ -64,6 +64,39 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip());
         });
 
+        // Account-access surface limits. These are initial engineering settings,
+        // not measured traffic limits. Guest flows key on client IP; flows that
+        // accept an email also fold it in so one identifier cannot be hammered.
+        RateLimiter::for('register', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        RateLimiter::for('password.email', function (Request $request) {
+            $key = mb_strtolower((string) $request->input('email', '')).'|'.$request->ip();
+
+            return Limit::perMinute(5)->by($key);
+        });
+
+        RateLimiter::for('password.reset', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
+        RateLimiter::for('email-verification', function (Request $request) {
+            $key = mb_strtolower((string) $request->input('email', '')).'|'.$request->ip();
+
+            return Limit::perMinute(3)->by($key);
+        });
+
+        RateLimiter::for('account-status', function (Request $request) {
+            $key = mb_strtolower((string) $request->input('email', '')).'|'.$request->ip();
+
+            return Limit::perMinute(5)->by($key);
+        });
+
+        RateLimiter::for('resubmit', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
+
         Model::preventLazyLoading(! app()->isProduction());
         Model::preventSilentlyDiscardingAttributes(! app()->isProduction());
         Model::preventAccessingMissingAttributes(! app()->isProduction());

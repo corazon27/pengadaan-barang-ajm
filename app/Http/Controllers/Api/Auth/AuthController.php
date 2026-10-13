@@ -34,6 +34,15 @@ class AuthController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        // Runtime access gate: only ACTIVE accounts may hold a token. PENDING,
+        // REJECTED, and SUSPENDED accounts are denied before any token is issued.
+        if (! $user->isActive()) {
+            Auth::guard('web')->logout();
+            $this->auditLogger->log($user, AuditAction::LOGIN_FAILED, $user);
+
+            return $this->errorResponse('Akun tidak aktif. Hubungi administrator.', null, 403);
+        }
+
         $token = $user->createToken('auth-token', ['role:'.$user->role->value]);
 
         $this->auditLogger->log($user, AuditAction::USER_LOGIN, $user);
