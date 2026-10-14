@@ -1,5 +1,15 @@
 # Project Changelog
 
+## [Phase 5 - Buyer Read-Only Self-Service Dashboard (Release 1)] - 2026-10-14
+- **Buyer read-only surfaces (web/Inertia, session auth):** `GET /akun/pesanan`, `GET /akun/pesanan/{order}`, `GET /akun/rfq`, `GET /akun/rfq/{rfq}`, `GET /akun/tagihan`, `GET /akun/tagihan/{invoice}`, `GET /akun/notifikasi` - thin controllers reusing the existing Models + Policies (no token API, no Vue Router/axios). Read-only: no buyer mutations, no mark-as-read.
+- **Enhanced `/akun` dashboard** (`account.home` route name and post-login redirect preserved): profile, bounded summary aggregates (`rfqs_open`, `orders_active`, `invoices_unpaid`, `notifications_unread`), five most recent orders, quick links, and the GOV-04 disclaimer that internal statuses are not official INAPROC/SPSE status.
+- **Shared formatting util** `resources/js/utils/format.js` (`formatPrice`, `formatDate`); `ProductCard.vue` and `ProductDetail.vue` now import `formatPrice` (rendered output unchanged; removes the duplicated `Intl.NumberFormat` block).
+- **Ownership-aware query scopes** `scopeVisibleTo()` added to `Rfq`, `Order`, `Invoice` (via order), `Payment` (via invoice -> order); additive and non-breaking, with no API serialization/query change. SUPERADMIN sees all, matching the policies.
+- **Authorization:** every new action performs an explicit policy check (`viewAny` on list, `view` on detail). Added `viewAny` to `InvoicePolicy` and `NotificationPolicy` (additive, mirrors `OrderPolicy`/`RfqPolicy`) so list actions are explicitly gated; cross-buyer ids return 403 without leaking record existence.
+- **Privacy:** the read-only notification surface serializes only an allowlist (no raw `data` blob); invoice/payment views never expose `proof_file_url`, `invoice_pdf_url` or `faktur_pajak_url`. The public Product API projection is unchanged.
+- **Regression coverage:** 22 new tests (`tests/Feature/Web/Account{Dashboard,Orders,Rfq,Invoices,Notifications,Scope}Test.php`).
+- **Verification:** SQLite full suite 745 total / 732 passed / 13 skipped / 0 failed (4,052 assertions); **MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 745 / 745 passed / 0 skipped / 0 failed (4,089 assertions)**; `pint --test` PASS; PHP syntax 19/19; `npm run build` PASS; `git diff --check` clean; no schema/API/role/auth change. **NOT COMMITTED, NOT PUSHED.**
+
 ## [Phase 3C.6 - Public Product Detail] - 2026-10-01
 - **Product Detail page** â€” `GET /produk/{sku}` (route name `produk.show`) â†’ `App\Http\Controllers\ProductDetailController::show`. `/katalog` remains the public discovery (collection) surface; `/produk/{sku}` is the public detail (resource) surface.
 - **Public identifier is the SKU** (not slug, not UUID). `ProductCard` became navigational: the whole card is one stretched Inertia `<Link>` to `/produk/${encodeURIComponent(sku)}`, with no nested interactive elements. The SKU was already in the 3C.5 catalog allowlist, so this required **no payload change, no new backend field, and no slug exposure**. The 3C.5 information hierarchy, TKDN/SNI markers and visual treatment are preserved.

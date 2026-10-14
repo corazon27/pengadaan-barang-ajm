@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentTerm;
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -142,5 +144,23 @@ class Invoice extends Model
     public function canTransitionTo(InvoiceStatus $to): bool
     {
         return in_array($to->value, self::allowedTransitionsFrom($this->status), true);
+    }
+
+    /**
+     * Restrict the query to invoices the given user may see.
+     *
+     * This is query scoping only — it is NOT authorisation. Controllers must
+     * still perform an explicit Policy check. Ownership is derived through the
+     * order chain (invoices have no direct owner column). SUPERADMIN sees every
+     * record (matching the policies).
+     *
+     * @param  Builder<Invoice>  $query
+     * @return Builder<Invoice>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $user->role === UserRole::SUPERADMIN
+            ? $query
+            : $query->whereHas('order', fn (Builder $order) => $order->where('user_id', $user->id));
     }
 }

@@ -6,6 +6,7 @@ import Container from '../Components/Container.vue';
 import Section from '../Components/Section.vue';
 import Button from '../Components/Button.vue';
 import ProductImage from '../Components/ProductImage.vue';
+import { formatPrice } from '../utils/format';
 
 // Phase 3C.6 — public product detail. The server sends exactly six public fields:
 // { sku, title, description, price, warrantyInfo, available }. Everything else —
@@ -27,23 +28,8 @@ const props = defineProps({
     },
 });
 
-// Copied verbatim from ProductCard.vue so the rendered price is byte-identical
-// across catalog and detail. Intentionally NOT extracted into a shared formatter
-// in 3C.6 — that remains future cleanup.
-const formatPrice = (raw) => {
-    const amount = Number(raw);
-
-    if (Number.isNaN(amount)) {
-        return raw;
-    }
-
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
-    }).format(amount);
-};
-
+// Price rendering is delegated to the shared formatter so it stays byte-identical
+// across catalog and detail surfaces.
 const pageTitle = computed(() => `${props.product.title} — ${props.appName}`);
 
 // Description is free text of unknown length, so it is bounded before use as a

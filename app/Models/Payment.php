@@ -6,6 +6,8 @@ namespace App\Models;
 
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -70,5 +72,26 @@ class Payment extends Model
     public function paymentMethodLabel(): string
     {
         return $this->payment_method->label();
+    }
+
+    /**
+     * Restrict the query to payments the given user may see.
+     *
+     * This is query scoping only — it is NOT authorisation. Controllers must
+     * still perform an explicit Policy check. Ownership is derived through the
+     * invoice → order chain (the payment's user_id is the uploader, not the
+     * authoritative owner). SUPERADMIN sees every record (matching the policies).
+     *
+     * @param  Builder<Payment>  $query
+     * @return Builder<Payment>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $user->role === UserRole::SUPERADMIN
+            ? $query
+            : $query->whereHas('invoice', fn (Builder $invoice) => $invoice->whereHas(
+                'order',
+                fn (Builder $order) => $order->where('user_id', $user->id),
+            ));
     }
 }

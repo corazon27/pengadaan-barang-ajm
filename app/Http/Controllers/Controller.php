@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 abstract class Controller
 {
@@ -20,5 +21,23 @@ abstract class Controller
         $perPage = (int) $request?->input('per_page', 15);
 
         return min(100, max(1, $perPage));
+    }
+
+    /**
+     * Normalized pagination envelope shared by the Inertia list surfaces, so
+     * the frontend Pagination component consumes one consistent shape (matching
+     * the public catalog contract).
+     *
+     * @return array{currentPage: int, lastPage: int, perPage: int, total: int, baseUrl: string}
+     */
+    protected function pagination(LengthAwarePaginator $paginator, string $baseUrl): array
+    {
+        return [
+            'currentPage' => $paginator->currentPage(),
+            'lastPage' => $paginator->lastPage(),
+            'perPage' => $paginator->perPage(),
+            'total' => $paginator->total(),
+            'baseUrl' => $baseUrl,
+        ];
     }
 }

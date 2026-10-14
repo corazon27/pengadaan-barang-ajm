@@ -702,3 +702,25 @@ SQLite full suite 719 total / 706 passed / 13 skipped / 0 failed (3,810 assertio
 
 ### Remaining limitations (unchanged blockers)
 SMTP deliverability unverified; first-SUPERADMIN provisioning path on Rumahweb Shared Hosting Small unconfirmed; B2G evidence policy/retention pending approval; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy config; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision; registration password minimum is 8 for public self-service while privileged CLI provisioning requires 12 — a deliberate policy difference (F5), now documented in code, not an oversight.
+
+
+## PHASE 5 - Buyer Read-Only Self-Service Dashboard (Release 1)
+
+**Status:** LOCAL COMPLETE / NOT COMMITTED
+**Date:** 2026-10-14
+
+### Objective
+Add read-only buyer self-service surfaces (orders, RFQ, invoices, notifications) plus an enhanced account dashboard, without introducing buyer mutations, a new role/permission framework, schema changes, or public/API contract changes.
+
+### Implementation
+- Web/Inertia thin controllers: `Account\OrderController`, `Account\RfqController`, `Account\InvoiceController`, `Account\NotificationController`, plus an enhanced `Account\HomeController`.
+- Routes (auth + account.active): /akun/pesanan, /akun/pesanan/{order}, /akun/rfq, /akun/rfq/{rfq}, /akun/tagihan, /akun/tagihan/{invoice}, /akun/notifikasi.
+- Ownership scopes `scopeVisibleTo()` on Rfq/Order/Invoice/Payment (invoice via order, payment via invoice -> order); shared `formatPrice`/`formatDate` frontend util; AccountLayout buyer nav; GOV-04 disclaimer on each surface.
+- Authorization: explicit policy check on every action (viewAny on list, view on detail); additive `viewAny` on InvoicePolicy + NotificationPolicy.
+- Pages: Account/Orders/{Index,Show}, Account/Rfq/{Index,Show}, Account/Invoices/{Index,Show}, Account/Notifications/Index; Account/Home enhanced.
+
+### Validation
+SQLite full suite 745 total / 732 passed / 13 skipped / 0 failed (4,052 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 745 / 745 passed / 0 skipped / 0 failed (4,089 assertions). `pint --test` PASS; PHP syntax PASS (19 files); `npm run build` PASS; `git diff --check` clean.
+
+### Open before production (blockers)
+Unchanged from Phase 4: first-SUPERADMIN provisioning on shared hosting; SMTP deliverability; B2G evidence policy/retention; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision. Buyer mutations, admin dashboard, exports, and real-time notifications remain out of scope.

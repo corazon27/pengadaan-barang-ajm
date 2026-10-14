@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import ProductImage from './ProductImage.vue';
+import { formatPrice } from '../utils/format';
 
 // Procurement information object. Information hierarchy (per GATE A reconciliation):
 //   1. identity  (image, SKU, title)
@@ -23,20 +24,6 @@ const props = defineProps({
 });
 
 const detailHref = computed(() => `/produk/${encodeURIComponent(props.product.sku)}`);
-
-const formatPrice = (raw) => {
-    const amount = Number(raw);
-
-    if (Number.isNaN(amount)) {
-        return raw;
-    }
-
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
-    }).format(amount);
-};
 
 // TKDN shown only when a meaningful positive local-content value exists — avoids
 // noise like "TKDN 0.00%" while staying a pure presence display (no certification claim).

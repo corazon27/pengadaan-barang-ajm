@@ -6,6 +6,9 @@ const { props } = usePage();
 
 const user = computed(() => props.auth?.user ?? null);
 const isSuperadmin = computed(() => user.value?.role === 'SUPERADMIN');
+const isBuyer = computed(
+    () => user.value?.role === 'BUYER_B2B' || user.value?.role === 'BUYER_B2G',
+);
 
 function logout() {
     router.post('/keluar');
@@ -26,13 +29,39 @@ function logout() {
                     <span>{{ props.appName }}</span>
                 </Link>
 
-                <nav class="flex items-center gap-6" aria-label="Navigasi akun">
+                <nav class="flex flex-wrap items-center justify-end gap-x-6 gap-y-2" aria-label="Navigasi akun">
                     <Link
                         href="/akun"
                         class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
                     >
                         Akun
                     </Link>
+                    <template v-if="isBuyer">
+                        <Link
+                            href="/akun/pesanan"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Pesanan
+                        </Link>
+                        <Link
+                            href="/akun/rfq"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            RFQ
+                        </Link>
+                        <Link
+                            href="/akun/tagihan"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Tagihan
+                        </Link>
+                        <Link
+                            href="/akun/notifikasi"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Notifikasi
+                        </Link>
+                    </template>
                     <Link
                         v-if="isSuperadmin"
                         href="/admin/akun"

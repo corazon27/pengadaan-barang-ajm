@@ -11,6 +11,14 @@ use App\Models\User;
 class InvoicePolicy
 {
     /**
+     * Determine whether the user can view any invoices.
+     */
+    public function viewAny(User $user): bool
+    {
+        return true; // Controller scopes the query
+    }
+
+    /**
      * Determine whether the user can view the invoice.
      */
     public function view(User $user, Invoice $invoice): bool

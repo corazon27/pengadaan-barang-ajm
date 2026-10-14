@@ -11,6 +11,16 @@ use App\Models\User;
 class NotificationPolicy
 {
     /**
+     * Determine whether the user can list notifications. The listing is always
+     * scoped to the authenticated user's own notifications; this gate exists so
+     * the list action still performs an explicit authorization check.
+     */
+    public function viewAny(User $user): bool
+    {
+        return true; // Controller scopes the query to the authenticated user
+    }
+
+    /**
      * A notification may be viewed only by its recipient or a Superadmin.
      */
     public function view(User $user, Notification $notification): bool

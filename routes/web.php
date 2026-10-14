@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Account\HomeController as AccountHomeController;
+use App\Http\Controllers\Account\InvoiceController as AccountInvoiceController;
+use App\Http\Controllers\Account\NotificationController as AccountNotificationController;
+use App\Http\Controllers\Account\OrderController as AccountOrderController;
+use App\Http\Controllers\Account\RfqController as AccountRfqController;
 use App\Http\Controllers\Admin\AccountReviewController;
 use App\Http\Controllers\Admin\B2gEvidenceController;
 use App\Http\Controllers\Auth\AccountStatusController;
@@ -101,6 +105,17 @@ Route::post('/verifikasi-email/kirim-ulang', [EmailVerificationController::class
 Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::get('/akun', [AccountHomeController::class, 'index'])->name('account.home');
     Route::post('/keluar', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    // Buyer read-only self-service surfaces. Every action is authorized through
+    // the ownership-aware policies; listings are additionally scoped via the
+    // models' `visibleTo` query scope. Read-only: no buyer mutations.
+    Route::get('/akun/pesanan', [AccountOrderController::class, 'index'])->name('account.orders.index');
+    Route::get('/akun/pesanan/{order}', [AccountOrderController::class, 'show'])->name('account.orders.show');
+    Route::get('/akun/rfq', [AccountRfqController::class, 'index'])->name('account.rfqs.index');
+    Route::get('/akun/rfq/{rfq}', [AccountRfqController::class, 'show'])->name('account.rfqs.show');
+    Route::get('/akun/tagihan', [AccountInvoiceController::class, 'index'])->name('account.invoices.index');
+    Route::get('/akun/tagihan/{invoice}', [AccountInvoiceController::class, 'show'])->name('account.invoices.show');
+    Route::get('/akun/notifikasi', [AccountNotificationController::class, 'index'])->name('account.notifications.index');
 
     Route::get('/konfirmasi-kata-sandi', [ConfirmPasswordController::class, 'show'])->name('password.confirm');
     Route::post('/konfirmasi-kata-sandi', [ConfirmPasswordController::class, 'store'])->name('password.confirm.store');

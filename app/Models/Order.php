@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -98,5 +100,22 @@ class Order extends Model
             OrderStatus::CANCELLED => 'Dibatalkan',
             default => $this->status->value,
         };
+    }
+
+    /**
+     * Restrict the query to records the given user may see.
+     *
+     * This is query scoping only — it is NOT authorisation. Controllers must
+     * still perform an explicit Policy check. SUPERADMIN sees every record
+     * (matching the policies); buyers are limited to their own records.
+     *
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $user->role === UserRole::SUPERADMIN
+            ? $query
+            : $query->where('user_id', $user->id);
     }
 }
