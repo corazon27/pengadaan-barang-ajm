@@ -706,7 +706,7 @@ SMTP deliverability unverified; first-SUPERADMIN provisioning path on Rumahweb S
 
 ## PHASE 5 - Buyer Read-Only Self-Service Dashboard (Release 1)
 
-**Status:** LOCAL COMPLETE / NOT COMMITTED
+**Status:** COMMITTED / PUSHED (`2bcddec`)
 **Date:** 2026-10-14
 
 ### Objective
