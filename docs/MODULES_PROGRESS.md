@@ -728,7 +728,7 @@ Unchanged from Phase 4: first-SUPERADMIN provisioning on shared hosting; SMTP de
 
 ## PHASE 5 - SUPERADMIN Read-Only Console (Release 2)
 
-**Status:** LOCAL COMPLETE / NOT COMMITTED
+**Status:** IMPLEMENTED / VERIFIED / COMMITTED LOCALLY (`4f9afa3`)
 **Date:** 2026-10-15
 
 ### Objective
@@ -745,7 +745,7 @@ Add a read-only SUPERADMIN dashboard and operational queues (RFQ, orders, invoic
 - Frontend: `AccountLayout` SUPERADMIN nav extended; shared `Components/Admin/{StatusFilter,GovNote}.vue`; pages under `Pages/Admin/{Dashboard,Rfq,Orders,Invoices,Payments,AuditLogs}`; GOV-04 disclaimer on every console surface.
 
 ### Validation
-SQLite full suite 770 total / 757 passed / 13 skipped / 0 failed (4,326 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 770 / 770 passed / 0 skipped / 0 failed (4,363 assertions). 25 new admin tests. `pint --test` PASS; PHP syntax PASS; `npm run build` PASS; `git diff --check` clean. No schema migration, no API contract change, no role/auth change.
+Figures below are from the implementation verification run (2026-10-15), not re-executed during this documentation correction: SQLite full suite 770 total / 757 passed / 13 skipped / 0 failed (4,326 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 770 / 770 passed / 0 skipped / 0 failed (4,363 assertions). 25 new admin tests. `pint --test` PASS; PHP syntax PASS; `npm run build` PASS; `git diff --check` clean. No schema migration, no API contract change, no role/auth change, and no production migration or deployment was performed.
 
 ### Open before production (blockers)
 Unchanged: first-SUPERADMIN provisioning on shared hosting; SMTP deliverability; B2G evidence policy/retention; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision. Payment-proof download remains intentionally omitted pending an audited/protected route. Admin write actions (payment verification, tax recalculation, RFQ respond, order/BAST transitions, exports) remain out of scope for this read-only release.
