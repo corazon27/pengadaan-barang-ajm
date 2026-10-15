@@ -91,15 +91,7 @@ class Order extends Model
 
     public function statusLabel(): string
     {
-        return match ($this->status) {
-            OrderStatus::PENDING_PAYMENT => 'Menunggu Pembayaran',
-            OrderStatus::PROCESSING => 'Diproses',
-            OrderStatus::SHIPPED => 'Dikirim',
-            OrderStatus::DELIVERED => 'Telah Diterima',
-            OrderStatus::COMPLETED => 'Selesai',
-            OrderStatus::CANCELLED => 'Dibatalkan',
-            default => $this->status->value,
-        };
+        return $this->status->statusLabel();
     }
 
     /**

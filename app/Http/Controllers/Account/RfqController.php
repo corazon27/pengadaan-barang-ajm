@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Account;
 
-use App\Enums\RfqStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Rfq;
 use Illuminate\Http\Request;
@@ -34,7 +33,7 @@ class RfqController extends Controller
             'id' => $rfq->getKey(),
             'rfq_number' => $rfq->rfq_number,
             'status' => $rfq->status->value,
-            'status_label' => $this->statusLabel($rfq->status),
+            'status_label' => $rfq->status->statusLabel(),
             'items_count' => (int) $rfq->items_count,
             'valid_until' => $rfq->valid_until?->toDateString(),
             'created_at' => $rfq->created_at?->toIso8601String(),
@@ -57,7 +56,7 @@ class RfqController extends Controller
                 'id' => $rfq->getKey(),
                 'rfq_number' => $rfq->rfq_number,
                 'status' => $rfq->status->value,
-                'status_label' => $this->statusLabel($rfq->status),
+                'status_label' => $rfq->status->statusLabel(),
                 'notes' => $rfq->notes,
                 'valid_until' => $rfq->valid_until?->toDateString(),
                 'created_at' => $rfq->created_at?->toIso8601String(),
@@ -72,22 +71,5 @@ class RfqController extends Controller
                 ])->values(),
             ],
         ]);
-    }
-
-    /**
-     * Internal tracking labels. These describe AJM's own workflow state and are
-     * explicitly NOT an official INAPROC/SPSE approval status (GOV-04).
-     */
-    private function statusLabel(RfqStatus $status): string
-    {
-        return match ($status) {
-            RfqStatus::SUBMITTED => 'Diajukan',
-            RfqStatus::REVIEWED => 'Ditinjau',
-            RfqStatus::QUOTED => 'Penawaran Tersedia',
-            RfqStatus::APPROVED => 'Disetujui',
-            RfqStatus::REJECTED => 'Ditolak',
-            RfqStatus::CONVERTED_TO_ORDER => 'Menjadi Pesanan',
-            RfqStatus::CANCELLED => 'Dibatalkan',
-        };
     }
 }

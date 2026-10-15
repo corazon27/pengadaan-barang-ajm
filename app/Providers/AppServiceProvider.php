@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Enums\AuditAction;
 use App\Models\User;
+use App\Policies\AdminPolicy;
 use App\Policies\AnalyticsPolicy;
 use App\Services\AuditLogger;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -33,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
         // AnalyticsPolicy has no backing model, so auto-discovery cannot find
         // it; register it explicitly to enable class-level authorization.
         Gate::policy(AnalyticsPolicy::class, AnalyticsPolicy::class);
+
+        // AdminPolicy likewise has no backing model: it is the explicit console
+        // gate for the SUPERADMIN dashboard and read-only operational queues.
+        Gate::policy(AdminPolicy::class, AdminPolicy::class);
 
         // Rate-limit login attempts per email + IP (AUTH-2) to slow brute-force.
         RateLimiter::for('login', function (Request $request) {

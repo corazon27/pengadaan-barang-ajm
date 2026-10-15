@@ -6,7 +6,13 @@ use App\Http\Controllers\Account\NotificationController as AccountNotificationCo
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
 use App\Http\Controllers\Account\RfqController as AccountRfqController;
 use App\Http\Controllers\Admin\AccountReviewController;
+use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\B2gEvidenceController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\PaymentController as AdminPaymentController;
+use App\Http\Controllers\Admin\RfqController as AdminRfqController;
 use App\Http\Controllers\Auth\AccountStatusController;
 use App\Http\Controllers\Auth\ApplicationEvidenceController;
 use App\Http\Controllers\Auth\ApplicationResubmitController;
@@ -121,11 +127,30 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::post('/konfirmasi-kata-sandi', [ConfirmPasswordController::class, 'store'])->name('password.confirm.store');
 });
 
-// --- Admin (SUPERADMIN, authorized via UserPolicy) --------------------------
+// --- Admin (SUPERADMIN, authorized via AdminPolicy + per-record policies) ---
 Route::middleware(['auth', 'account.active'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function (): void {
+        // Read-only SUPERADMIN console. Each action performs an explicit
+        // AdminPolicy gate; detail pages additionally re-authorize the record
+        // through its own policy. No mutations on any of these routes.
+        Route::get('/dasbor', [AdminDashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/rfq', [AdminRfqController::class, 'index'])->name('rfqs.index');
+        Route::get('/rfq/{rfq}', [AdminRfqController::class, 'show'])->name('rfqs.show');
+
+        Route::get('/pesanan', [AdminOrderController::class, 'index'])->name('orders.index');
+        Route::get('/pesanan/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+
+        Route::get('/tagihan', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/tagihan/{invoice}', [AdminInvoiceController::class, 'show'])->name('invoices.show');
+
+        Route::get('/pembayaran', [AdminPaymentController::class, 'index'])->name('payments.index');
+        Route::get('/pembayaran/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
+
+        Route::get('/audit', [AdminAuditLogController::class, 'index'])->name('audit.index');
+
         Route::get('/akun', [AccountReviewController::class, 'index'])->name('accounts.index');
         Route::get('/akun/{account}', [AccountReviewController::class, 'show'])->name('accounts.show');
 

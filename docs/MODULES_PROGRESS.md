@@ -724,3 +724,28 @@ SQLite full suite 745 total / 732 passed / 13 skipped / 0 failed (4,052 assertio
 
 ### Open before production (blockers)
 Unchanged from Phase 4: first-SUPERADMIN provisioning on shared hosting; SMTP deliverability; B2G evidence policy/retention; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision. Buyer mutations, admin dashboard, exports, and real-time notifications remain out of scope.
+
+
+## PHASE 5 - SUPERADMIN Read-Only Console (Release 2)
+
+**Status:** LOCAL COMPLETE / NOT COMMITTED
+**Date:** 2026-10-15
+
+### Objective
+Add a read-only SUPERADMIN dashboard and operational queues (RFQ, orders, invoices, payments, audit) on the existing session/Inertia architecture, without mutations, exports, new roles/ACL, schema changes, or public/API contract changes.
+
+### Implementation
+- Console gate: `app/Policies/AdminPolicy.php` (no backing model; `view => SUPERADMIN`), registered via `Gate::policy(AdminPolicy::class, AdminPolicy::class)` in `AppServiceProvider`. Every admin action authorizes explicitly; detail pages re-authorize the record; audit enforces `AuditLogPolicy@viewAny`. No SUPERADMIN middleware, no new role/ACL.
+- Controllers: `Admin\DashboardController`, `Admin\RfqController`, `Admin\OrderController`, `Admin\InvoiceController`, `Admin\PaymentController`, `Admin\AuditLogController` (all read-only).
+- Routes (auth + account.active, prefix `admin`, name `admin.`): /admin/dasbor, /admin/rfq(/{rfq}), /admin/pesanan(/{order}), /admin/tagihan(/{invoice}), /admin/pembayaran(/{payment}), /admin/audit. Existing /admin/akun review flows untouched.
+- Analytics reuse: extracted `app/Services/AnalyticsMetricsService::snapshot()` from the API `AnalyticsController@dashboard`; API now delegates (JSON contract unchanged) and the dashboard calls the service directly.
+- Attention counters (bounded aggregates): pending accounts; evidence awaiting review; RFQs awaiting conversion; payments pending verification; invoices review-required; overdue invoices.
+- Status labels single-sourced: `statusLabel()` added to `RfqStatus` and `OrderStatus`; buyer `Account\RfqController` and `Order::statusLabel()` delegate (labels unchanged).
+- Privacy: never serialize proof/document URLs or B2G evidence path/disk; payment proof exposed only as a `has_proof` boolean (no download link - gap reported). Audit state snapshots rendered via an explicit scalar-only allowlist with a redacted count; PII never dumped; filters allowlisted (unknown ignored).
+- Frontend: `AccountLayout` SUPERADMIN nav extended; shared `Components/Admin/{StatusFilter,GovNote}.vue`; pages under `Pages/Admin/{Dashboard,Rfq,Orders,Invoices,Payments,AuditLogs}`; GOV-04 disclaimer on every console surface.
+
+### Validation
+SQLite full suite 770 total / 757 passed / 13 skipped / 0 failed (4,326 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 770 / 770 passed / 0 skipped / 0 failed (4,363 assertions). 25 new admin tests. `pint --test` PASS; PHP syntax PASS; `npm run build` PASS; `git diff --check` clean. No schema migration, no API contract change, no role/auth change.
+
+### Open before production (blockers)
+Unchanged: first-SUPERADMIN provisioning on shared hosting; SMTP deliverability; B2G evidence policy/retention; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision. Payment-proof download remains intentionally omitted pending an audited/protected route. Admin write actions (payment verification, tax recalculation, RFQ respond, order/BAST transitions, exports) remain out of scope for this read-only release.

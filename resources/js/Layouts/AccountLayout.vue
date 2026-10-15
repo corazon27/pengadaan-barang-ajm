@@ -62,13 +62,50 @@ function logout() {
                             Notifikasi
                         </Link>
                     </template>
-                    <Link
-                        v-if="isSuperadmin"
-                        href="/admin/akun"
-                        class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
-                    >
-                        Admin
-                    </Link>
+                    <template v-if="isSuperadmin">
+                        <Link
+                            href="/admin/dasbor"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Dasbor
+                        </Link>
+                        <Link
+                            href="/admin/akun"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Akun
+                        </Link>
+                        <Link
+                            href="/admin/rfq"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            RFQ
+                        </Link>
+                        <Link
+                            href="/admin/pesanan"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Pesanan
+                        </Link>
+                        <Link
+                            href="/admin/tagihan"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Tagihan
+                        </Link>
+                        <Link
+                            href="/admin/pembayaran"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Pembayaran
+                        </Link>
+                        <Link
+                            href="/admin/audit"
+                            class="text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:text-brand"
+                        >
+                            Audit
+                        </Link>
+                    </template>
                     <button
                         type="button"
                         class="rounded-brand-sm border border-line px-3 py-1.5 text-caption font-medium uppercase tracking-[0.2em] text-ink transition-colors duration-fast hover:border-brand-secondary hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-line-strong focus-visible:ring-offset-2"
