@@ -16,14 +16,12 @@ use App\Models\Rfq;
 use App\Models\RfqItem;
 use App\Models\User;
 use App\Notifications\RfqRespondedNotification;
-use App\Notifications\RfqSubmittedNotification;
 use App\Services\AuditLogger;
 use App\Services\PdfService;
-use App\Services\UniqueIdentifier;
+use App\Services\RfqSubmissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 class RfqController extends Controller
 {
@@ -65,39 +63,12 @@ class RfqController extends Controller
     /**
      * Store a newly created RFQ.
      */
-    public function store(StoreRfqRequest $request): JsonResponse
+    public function store(StoreRfqRequest $request, RfqSubmissionService $service): JsonResponse
     {
-        $validated = $request->validated();
-        $items = $validated['items'] ?? [];
-        $rfqNumber = UniqueIdentifier::generate('RFQ', Rfq::class, 'rfq_number');
+        /** @var User $user */
+        $user = $request->user();
 
-        $rfq = DB::transaction(function () use ($validated, $items, $rfqNumber, $request) {
-            $rfq = Rfq::create([
-                'rfq_number' => $rfqNumber,
-                'user_id' => $request->user()->id,
-                'notes' => $validated['notes'] ?? null,
-            ]);
-
-            foreach ($items as $item) {
-                RfqItem::create([
-                    'rfq_id' => $rfq->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'target_price' => $item['target_price'] ?? null,
-                    'notes' => $item['notes'] ?? null,
-                ]);
-            }
-
-            return $rfq->load('items.product', 'user');
-        });
-
-        // Notify all Superadmins that a new RFQ is awaiting a quotation
-        Notification::send(
-            User::where('role', UserRole::SUPERADMIN)->get(),
-            new RfqSubmittedNotification($rfq)
-        );
-
-        $this->auditLogger->log($request->user(), AuditAction::RFQ_CREATED, $rfq);
+        $rfq = $service->submit($user, $request->validated());
 
         return response()->json([
             'success' => true,

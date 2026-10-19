@@ -69,7 +69,7 @@ Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
 
 Route::middleware(['auth:sanctum', 'account.active'])->group(function () {
     Route::get('/rfqs', [RfqController::class, 'index']);
-    Route::post('/rfqs', [RfqController::class, 'store']);
+    Route::post('/rfqs', [RfqController::class, 'store'])->middleware('throttle:auth-write');
     Route::get('/rfqs/{rfq}', [RfqController::class, 'show']);
     Route::post('/rfqs/{rfq}/respond', [RfqController::class, 'respond']);
     Route::patch('/rfqs/{rfq}/status', [RfqController::class, 'updateStatus']);

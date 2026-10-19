@@ -1,5 +1,6 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AccountLayout from '../../../Layouts/AccountLayout.vue';
 import EmptyState from '../../../Components/EmptyState.vue';
 import Pagination from '../../../Components/Pagination.vue';
@@ -10,20 +11,34 @@ defineProps({
     pagination: { type: Object, required: true },
 });
 
+const { props } = usePage();
+const isBuyer = computed(
+    () => props.auth?.user?.role === 'BUYER_B2B' || props.auth?.user?.role === 'BUYER_B2G',
+);
+
 defineOptions({ layout: AccountLayout });
 </script>
 
 <template>
     <Head title="RFQ" />
 
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-h3 font-semibold">Permintaan Penawaran (RFQ)</h1>
-        <Link
-            href="/akun"
-            class="text-caption font-medium text-brand transition-colors duration-fast hover:text-brand-secondary"
-        >
-            ← Akun
-        </Link>
+        <div class="flex items-center gap-4">
+            <Link
+                v-if="isBuyer"
+                href="/akun/rfq/create"
+                class="rounded-brand-sm bg-brand px-4 py-2 text-caption font-medium text-white transition-colors duration-fast hover:bg-brand-secondary"
+            >
+                Buat RFQ
+            </Link>
+            <Link
+                href="/akun"
+                class="text-caption font-medium text-brand transition-colors duration-fast hover:text-brand-secondary"
+            >
+                ← Akun
+            </Link>
+        </div>
     </div>
 
     <div v-if="rfqs.length === 0" class="mt-8">

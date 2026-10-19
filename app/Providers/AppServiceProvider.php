@@ -102,6 +102,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // Buyer write surfaces (web RFQ submit + API RFQ submit) share one limiter
+        // keyed by the authenticated user id + resolved client IP. 20 requests /
+        // minute is an initial engineering setting, not a measured traffic limit;
+        // no forwarded header is trusted ($request->ip()).
+        RateLimiter::for('auth-write', function (Request $request) {
+            $key = ($request->user()?->getAuthIdentifier() ?? 'guest').'|'.$request->ip();
+
+            return Limit::perMinute(20)->by($key);
+        });
+
         Model::preventLazyLoading(! app()->isProduction());
         Model::preventSilentlyDiscardingAttributes(! app()->isProduction());
         Model::preventAccessingMissingAttributes(! app()->isProduction());

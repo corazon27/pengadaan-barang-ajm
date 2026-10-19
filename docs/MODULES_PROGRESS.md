@@ -749,3 +749,26 @@ Figures below are from the implementation verification run (2026-10-15), not re-
 
 ### Open before production (blockers)
 Unchanged: first-SUPERADMIN provisioning on shared hosting; SMTP deliverability; B2G evidence policy/retention; migration rollout window/backup; secure-cookie/HTTPS + trusted-proxy; MFA for SUPERADMIN; explicit Sanctum token-lifetime decision. Payment-proof download remains intentionally omitted pending an audited/protected route. Admin write actions (payment verification, tax recalculation, RFQ respond, order/BAST transitions, exports) remain out of scope for this read-only release.
+
+## PHASE 6 - Buyer RFQ Creation (Web / Inertia) - Phase 1
+
+**Status:** IMPLEMENTED / VERIFIED - COMMITTED LOCALLY (Phase 1 RFQ creation; not pushed)
+**Date:** 2026-10-19
+
+### Objective
+Let a logged-in buyer create an RFQ from the browser (session/Inertia) by reusing the same domain rules as the Sanctum API instead of duplicating them, without schema changes, API contract changes, or a new role/permission framework.
+
+### Implemented
+- Shared writer `App\Services\RfqSubmissionService::submit(User, array): Rfq`. The API `Api\Rfq\RfqController@store` now delegates to it; the JSON envelope, 201 status, messages, validation rules, and role authorization are unchanged.
+- Web flow: `GET /akun/rfq/create` + `POST /akun/rfq` on `Account\RfqController`, behind `auth` + `account.active`; write authorization via `RfqPolicy::createAsBuyer` (BUYER_B2B/BUYER_B2G only). The API `create` ability is untouched.
+- `GET /akun/rfq/create` is registered before `GET /akun/rfq/{rfq}` (which now has a `whereUuid('rfq')` constraint). `App\Http\Requests\Account\StoreRfqRequest` mirrors the API rules; guests/inactive accounts redirect to login; SUPERADMIN receives 403.
+- Audit: RFQ + items + `RFQ_CREATED` are written atomically via `AuditLogger::strictLog` inside the submission transaction; notifications are dispatched after commit.
+- `auth-write` limiter (20/min per authenticated user + client IP) applied to both `POST /akun/rfq` and `POST /api/v1/rfqs`.
+- Product selector: `base_price` (authoritative buyer-facing price source, mapped to `price`) and `stock` (only to derive the `available` boolean) are the query columns; the browser receives only the allowlisted `id, sku, title, price, available` projection (<= 200 rows). Raw `base_price`/`stock` keys are never serialized; out-of-stock products remain selectable.
+- Pages: `Account/Rfq/Create.vue` plus a "Buat RFQ" CTA on `Account/Rfq/Index.vue` (non-buyers excluded); GOV-04 disclaimer on both.
+
+### Validation
+SQLite full suite 789 total / 776 passed / 13 skipped / 0 failed (4,528 assertions); MySQL 8.4.3 full suite on the isolated `pengadaan_barang_ajm_testing` database 789 / 789 passed / 0 skipped / 0 failed (4,565 assertions). 19 new tests. `pint --test` PASS; PHP syntax PASS; `npm run build` PASS; `git diff --check` clean. No migration, no API contract or role change, no deployment.
+
+### Deferred / out of scope
+BAST web signing (Phase 2) and payment-proof web submission (Phase 3), including all their open prerequisites (signing authority; proof rollback/reconciliation, access, and resubmission semantics). Buyer RFQ editing, admin RFQ response workflows, exports, supplier-side flows, API role-behavior changes, and new permission frameworks remain out of scope.

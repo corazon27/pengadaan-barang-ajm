@@ -118,7 +118,17 @@ Route::middleware(['auth', 'account.active'])->group(function (): void {
     Route::get('/akun/pesanan', [AccountOrderController::class, 'index'])->name('account.orders.index');
     Route::get('/akun/pesanan/{order}', [AccountOrderController::class, 'show'])->name('account.orders.show');
     Route::get('/akun/rfq', [AccountRfqController::class, 'index'])->name('account.rfqs.index');
-    Route::get('/akun/rfq/{rfq}', [AccountRfqController::class, 'show'])->name('account.rfqs.show');
+
+    // Buyer RFQ submission. `/akun/rfq/create` MUST stay registered before the
+    // `{rfq}` detail route; the UUID constraint keeps the two disjoint anyway.
+    Route::get('/akun/rfq/create', [AccountRfqController::class, 'create'])->name('account.rfqs.create');
+    Route::post('/akun/rfq', [AccountRfqController::class, 'store'])
+        ->middleware('throttle:auth-write')
+        ->name('account.rfqs.store');
+
+    Route::get('/akun/rfq/{rfq}', [AccountRfqController::class, 'show'])
+        ->whereUuid('rfq')
+        ->name('account.rfqs.show');
     Route::get('/akun/tagihan', [AccountInvoiceController::class, 'index'])->name('account.invoices.index');
     Route::get('/akun/tagihan/{invoice}', [AccountInvoiceController::class, 'show'])->name('account.invoices.show');
     Route::get('/akun/notifikasi', [AccountNotificationController::class, 'index'])->name('account.notifications.index');

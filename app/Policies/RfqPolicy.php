@@ -39,6 +39,20 @@ class RfqPolicy
     }
 
     /**
+     * Determine whether the user may create an RFQ through the buyer web flow.
+     *
+     * The browser boundary deliberately excludes SUPERADMIN (they quote requests,
+     * they do not raise them). The API `create` ability above is unchanged.
+     */
+    public function createAsBuyer(User $user): bool
+    {
+        return in_array($user->role, [
+            UserRole::BUYER_B2B,
+            UserRole::BUYER_B2G,
+        ], true);
+    }
+
+    /**
      * Determine whether the user can respond to the RFQ (Superadmin only).
      */
     public function respond(User $user, Rfq $rfq): bool
